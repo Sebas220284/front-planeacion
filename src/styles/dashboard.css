@@ -1,0 +1,322 @@
+body{
+margin:0;
+background:#0f1115;
+font-family:"Segoe UI", Arial, sans-serif;
+color:#e4e6eb;
+}
+
+.layout{
+display:flex;
+height:100vh;
+}
+
+
+.sidebar{
+width:260px;
+background:#16181d;
+border-right:1px solid #2a2d34;
+padding:25px 20px;
+display:flex;
+flex-direction:column;
+}
+
+.sidebar h2{
+font-size:17px;
+margin-bottom:10px;
+font-weight:600;
+color:#ffffff;
+}
+
+.dependency-info{
+font-size:13px;
+line-height:1.4;
+color:#b5b8be;
+margin-bottom:25px;
+}
+
+.strategy-toggle{
+background:none;
+border:none;
+color:#cfd3da;
+font-size:14px;
+cursor:pointer;
+margin-bottom:10px;
+text-align:left;
+}
+
+.strategy-list{
+list-style:none;
+padding:0;
+margin:0;
+max-height:280px;
+overflow-y:auto;
+}
+
+.strategy-list li{
+display:flex;
+gap:10px;
+align-items:flex-start;
+padding:10px;
+border-radius:6px;
+font-size:13px;
+cursor:pointer;
+color:#cfd3da;
+transition:all 0.2s ease;
+}
+
+.strategy-list li:hover{
+background:#23262d;
+transform:translateX(3px);
+}
+
+.strategy-list li.active{
+background:#1f2633;
+border-left:3px solid #4da3ff;
+color:#ffffff;
+}
+
+.strategy-number{
+font-weight:bold;
+color:#4da3ff;
+min-width:20px;
+}
+.strategy-name{
+flex:1;
+line-height:1.4;
+}
+
+.content{
+flex:1;
+padding:35px 45px;
+background:#0f1115;
+overflow:auto;
+}
+
+.empty-panel{
+display:flex;
+justify-content:center;
+align-items:center;
+height:70%;
+font-size:16px;
+color:#7d828c;
+}
+.strategy-panel h2{
+font-size:18px;
+margin-bottom:18px;
+}
+
+.planning-grid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:12px;
+}
+
+.planning-grid div{
+background:#1a1d23;
+padding:10px 12px;
+border-radius:6px;
+border:1px solid #2b2f37;
+}
+
+.planning-grid label{
+font-size:10px;
+letter-spacing:1px;
+text-transform:uppercase;
+color:#8c919b;
+display:block;
+margin-bottom:4px;
+}
+
+.planning-grid p{
+margin:0;
+font-size:13px;
+color:#e4e6eb;
+}
+
+.strategy-text{
+width:100%;
+margin-top:20px;
+height:120px;
+border-radius:6px;
+border:1px solid #2c3038;
+background:#1a1d23;
+color:#ffffff;
+padding:10px;
+font-size:13px;
+resize:none;
+}
+
+.logout-btn{
+margin-top:auto;
+border:none;
+background:#22252b;
+padding:10px;
+border-radius:6px;
+cursor:pointer;
+font-size:13px;
+color:#d1d5db;
+}
+
+.logout-btn:hover{
+background:#2e323b;
+}
+
+.excel-table{
+
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+font-size:13px;
+
+}
+
+.excel-table th{
+
+background:#1b1f27;
+padding:10px;
+text-align:left;
+border:1px solid #2c3038;
+
+}
+
+.excel-table td{
+
+padding:10px;
+border:1px solid #2c3038;
+
+}
+
+.excel-table tr:hover{
+
+background:#1a1e25;
+
+}
+.excel-table input{
+
+width:60px;
+padding:5px;
+background:#1a1d23;
+border:1px solid #2c3038;
+color:white;
+
+}
+
+.table-comment{
+
+width:180px;
+height:60px;
+background:#1a1d23;
+border:1px solid #2c3038;
+color:white;
+
+}
+.save-container{
+display:flex;
+justify-content:flex-end;
+align-items:center;
+gap:12px;
+margin-top:20px;
+flex-wrap:wrap;
+}
+
+.save-btn{
+padding:6px 12px;
+font-size:12px;
+background:#16a34a;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
+width:auto;
+}
+
+
+.add-line-btn{
+padding:6px 12px;
+font-size:12px;
+background:#2563eb;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
+width:auto;
+}
+
+
+
+.table-container{
+overflow-x:auto;
+}
+
+
+
+.estado-pendiente{
+background:#facc15;
+padding:4px 8px;
+border-radius:6px;
+font-size:11px;
+}
+
+.estado-aprobado{
+background:#22c55e;
+color:white;
+padding:4px 8px;
+border-radius:6px;
+font-size:11px;
+}
+
+
+
+.modal-overlay{
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.4);
+display:flex;
+align-items:center;
+justify-content:center;
+z-index:1000;
+}
+
+.modal{
+background:gray;
+padding:25px;
+border-radius:10px;
+width:320px;
+box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal input{
+width:100%;
+padding:8px;
+margin-top:10px;
+margin-bottom:15px;
+border:1px solid #ccc;
+border-radius:6px;
+}
+
+.modal-buttons{
+display:flex;
+justify-content:flex-end;
+gap:10px;
+}
+
+.modal-buttons button{
+padding:6px 12px;
+font-size:12px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+}
+
+.modal-buttons button:first-child{
+background:#ef4444;
+color:white;
+}
+
+.modal-buttons button:last-child{
+background:#2563eb;
+color:white;
+}
