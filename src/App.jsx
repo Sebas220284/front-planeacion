@@ -1,7 +1,7 @@
-import {BrowserRouter,Routes,Route} from "react-router-dom";
+import {BrowserRouter,Routes,Route} from "react-router-dom"
 
-import Login from "./pages/Login";
-import DashboardDependencias from "./pages/DashboardDependencias";
+import Login from "./pages/Login"
+import DashboardRouter from "./pages/DashboardRouter"
 
 function App(){
 
@@ -11,16 +11,16 @@ return(
 
 <Routes>
 
-<Route path="/" element={<Login/>}/>
+<Route path="/" element={<Login/>} />
 
-<Route path="/dependencias" element={<DashboardDependencias/>}/>
+<Route path="/dashboard" element={<DashboardRouter/>} />
 
 </Routes>
 
 </BrowserRouter>
 
-);
+)
 
 }
 
-export default App;
+export default App
