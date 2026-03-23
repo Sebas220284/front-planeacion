@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import "../styles/dashboard.css"
 
-export default function Dashboard(){
+export default function DashboardDependencias(){
 
 const [user,setUser] = useState(null)
 const [selectedStrategy,setSelectedStrategy] = useState(null)
