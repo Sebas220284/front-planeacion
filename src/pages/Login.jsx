@@ -10,7 +10,7 @@ export default function Login() {
   } = useLogin();
 
   return (
-    <div className="login-wrapper"> {/*Lado Izquierdo*/}
+    <div className="login-wrapper"> 
         <div className="login-left">
             <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -20,7 +20,7 @@ export default function Login() {
             </motion.div>
         </div>
 
-        <div className="login-right"> {/*Lado Derecho*/}
+        <div className="login-right"> 
             <motion.div
                 className="login-card"
                 initial={{ opacity: 0, y: 20 }}

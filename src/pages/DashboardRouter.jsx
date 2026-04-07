@@ -12,7 +12,7 @@ useEffect(()=>{
 
 const token = localStorage.getItem("token")
 
-fetch("http://localhost:3000/api/auth/me",{
+fetch("http://localhost:3001/api/auth/me",{
 headers:{
 Authorization:`Bearer ${localStorage.getItem("token")}`
 }
