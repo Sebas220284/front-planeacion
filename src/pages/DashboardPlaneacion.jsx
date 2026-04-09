@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import socket from "../services/socket"
+import { generarPDF } from "../utils/generarPDF"
 import "../styles/dashboardPlaneacion.css"
 
 export default function DashboardPlaneacion(){
@@ -9,15 +10,17 @@ const [dependencias, setDependencias] = useState([])
 const [activa, setActiva] = useState(null)
 const [openDependencias, setOpenDependencias] = useState(false)
 const [trimestres, setTrimestres] = useState({})
+const [modalPDF, setModalPDF] = useState(false)
+const [filtroPDF, setFiltroPDF] = useState({ anio: 2025, trimestre: 1 })
 
 const navigate = useNavigate()
 
 useEffect(()=>{
+  socket.emit("join_planeacion")
 
   fetch("http://localhost:3001/api/planeacion/dashboard")
     .then(res => res.json())
     .then(async (data) => {
-
       setDependencias(data)
       if(data.length > 0) setActiva(data[0].id)
 
@@ -54,7 +57,6 @@ useEffect(()=>{
     socket.off("trimestre_actualizado")
     socket.off("revision-trimestre")
   }
-
 },[])
 
 const getValor = (planning_id, anio, trimestre, tipo) => {
@@ -75,7 +77,7 @@ const getEstadoRevision = (planning_id, anio, tipo) => {
   return lista.find(t => t.anio === anio && t.tipo === tipo)?.estado_revision || "pendiente"
 }
 
-const revisarTrimestre = async (planning_id, anio, tipo, estado) => {
+const revisarTrimestre = async (planning_id, anio, tipo, estado, dependency_id) => {
   const lista = trimestres[planning_id] || []
   const registros = lista.filter(t => t.anio === anio && t.tipo === tipo)
 
@@ -83,7 +85,7 @@ const revisarTrimestre = async (planning_id, anio, tipo, estado) => {
     await fetch(`http://localhost:3001/api/review/${t.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estado, comentario: "", user_id: null })
+      body: JSON.stringify({ estado, comentario: "", user_id: null, dependency_id })
     })
   }
 
@@ -93,6 +95,20 @@ const revisarTrimestre = async (planning_id, anio, tipo, estado) => {
     )
     return { ...prev, [planning_id]: nuevaLista }
   })
+}
+
+const todosAprobados = (dep) => {
+  if(!dep) return false
+  for(const est of Object.values(dep.estrategias)){
+    for(const linea of est.lineas){
+      const lista = trimestres[linea.id] || []
+      if(lista.length === 0) return false
+      const tieneRechazado = lista.some(t => t.estado_revision === "rechazado")
+      const tienePendiente = lista.some(t => t.estado_revision === "pendiente" || !t.estado_revision)
+      if(tieneRechazado || tienePendiente) return false
+    }
+  }
+  return true
 }
 
 const EstadoBadge = ({ estado }) => {
@@ -114,6 +130,7 @@ const EstadoBadge = ({ estado }) => {
 }
 
 const dependencia = dependencias.find(d => d.id === activa)
+const pdfHabilitado = todosAprobados(dependencia)
 
 const cerrarSesion = () => {
   localStorage.removeItem("token")
@@ -182,7 +199,7 @@ return(
 
             <tbody>
               {est.lineas.map((linea, i) => (
-                <tr key={linea.id}>
+                <tr key={`${est.id}-${i}-${linea.id}`}>
                   <td>{i+1}</td>
                   <td>{linea.lineas_accion}</td>
 
@@ -194,7 +211,7 @@ return(
                   ].map(({ anio, tipo }) => {
                     const estado = getEstadoRevision(linea.id, anio, tipo)
                     return (
-                      <React.Fragment key={`${linea.id}-${anio}-${tipo}`}>
+                      <React.Fragment key={`${est.id}-${linea.id}-${i}-${anio}-${tipo}`}>
                         <td>{getValor(linea.id, anio, 1, tipo)}</td>
                         <td>{getValor(linea.id, anio, 2, tipo)}</td>
                         <td>{getValor(linea.id, anio, 3, tipo)}</td>
@@ -205,13 +222,13 @@ return(
                           <EstadoBadge estado={estado} />
                           <div style={{display:"flex", gap:"4px", marginTop:"4px"}}>
                             <button
-                              onClick={()=>revisarTrimestre(linea.id, anio, tipo, "aprobado")}
+                              onClick={()=>revisarTrimestre(linea.id, anio, tipo, "aprobado", dependencia.id)}
                               style={{background:"#16a34a", color:"white", border:"none", borderRadius:"4px", padding:"2px 8px", cursor:"pointer", fontSize:"11px"}}
                             >
                               ✅ Aprobar
                             </button>
                             <button
-                              onClick={()=>revisarTrimestre(linea.id, anio, tipo, "rechazado")}
+                              onClick={()=>revisarTrimestre(linea.id, anio, tipo, "rechazado", dependencia.id)}
                               style={{background:"#dc2626", color:"white", border:"none", borderRadius:"4px", padding:"2px 8px", cursor:"pointer", fontSize:"11px"}}
                             >
                               ❌ Rechazar
@@ -231,7 +248,91 @@ return(
       </div>
     ))}
 
+    {dependencia && (
+      <div style={{
+        marginTop:"24px", marginBottom:"24px",
+        display:"flex", justifyContent:"flex-end"
+      }}>
+        <button
+          onClick={()=> pdfHabilitado && setModalPDF(true)}
+          disabled={!pdfHabilitado}
+          title={!pdfHabilitado ? "Todos los trimestres deben estar aprobados para exportar" : "Exportar PDF"}
+          style={{
+            background: pdfHabilitado ? "#dc2626" : "#9ca3af",
+            color:"white", border:"none", borderRadius:"8px",
+            padding:"10px 24px", fontSize:"14px", fontWeight:"600",
+            cursor: pdfHabilitado ? "pointer" : "not-allowed",
+            opacity: pdfHabilitado ? 1 : 0.6,
+            transition:"all 0.2s"
+          }}
+        >
+          📄 {pdfHabilitado ? "Exportar PDF" : "PDF (pendiente aprobación)"}
+        </button>
+      </div>
+    )}
+
   </div>
+
+
+  {modalPDF && (
+    <div style={{
+      position:"fixed", inset:0, background:"rgba(0,0,0,0.5)",
+      display:"flex", alignItems:"center", justifyContent:"center", zIndex:999
+    }}>
+      <div style={{
+        background:"white", borderRadius:"12px",
+        padding:"24px", width:"320px",
+        boxShadow:"0 20px 60px rgba(0,0,0,0.3)"
+      }}>
+        <h3 style={{marginBottom:"16px"}}>📄 Seleccionar período</h3>
+
+        <label style={{display:"block", marginBottom:"6px", fontSize:"13px", fontWeight:"600"}}>Año</label>
+        <select
+          value={filtroPDF.anio}
+          onChange={e=>setFiltroPDF(prev=>({...prev, anio:Number(e.target.value)}))}
+          style={{width:"100%", padding:"8px", borderRadius:"6px", border:"1px solid #ddd", marginBottom:"12px"}}
+        >
+          <option value={2025}>2025</option>
+          <option value={2026}>2026</option>
+        </select>
+
+        <label style={{display:"block", marginBottom:"6px", fontSize:"13px", fontWeight:"600"}}>Trimestre</label>
+        <select
+          value={filtroPDF.trimestre ?? ""}
+          onChange={e=>setFiltroPDF(prev=>({...prev, trimestre: e.target.value==="" ? null : Number(e.target.value)}))}
+          style={{width:"100%", padding:"8px", borderRadius:"6px", border:"1px solid #ddd", marginBottom:"20px"}}
+        >
+          <option value="">Año completo</option>
+          <option value={1}>T1 - Enero a Marzo</option>
+          <option value={2}>T2 - Abril a Junio</option>
+          <option value={3}>T3 - Julio a Septiembre</option>
+          <option value={4}>T4 - Octubre a Diciembre</option>
+        </select>
+
+        <div style={{display:"flex", gap:"8px", justifyContent:"flex-end"}}>
+          <button
+            onClick={()=>setModalPDF(false)}
+            style={{padding:"8px 16px", borderRadius:"6px", border:"1px solid #ddd", cursor:"pointer", background:"white"}}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={()=>{
+              generarPDF(dependencia, dependencia.estrategias, trimestres, filtroPDF)
+              setModalPDF(false)
+            }}
+            style={{
+              padding:"8px 16px", borderRadius:"6px",
+              background:"#dc2626", color:"white",
+              border:"none", cursor:"pointer", fontWeight:"600"
+            }}
+          >
+            📄 Descargar PDF
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
 
 </div>
 )

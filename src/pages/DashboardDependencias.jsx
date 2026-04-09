@@ -8,8 +8,7 @@ const [user, setUser] = useState(null)
 const [selectedStrategy, setSelectedStrategy] = useState(null)
 const [lineas, setLineas] = useState([])
 const [showStrategies, setShowStrategies] = useState(true)
-//const [showNotifaciones, setShowNotifiaciones] = useState(true)
-
+const [showNotificaciones, setShowNotificaciones] = useState(true)
 const [modalLinea, setModalLinea] = useState(false)
 const [nuevaLinea, setNuevaLinea] = useState("")
 const [notificaciones, setNotificaciones] = useState([])
@@ -25,25 +24,34 @@ useEffect(()=>{
     headers:{ Authorization:`Bearer ${token}` }
   })
   .then(res=>res.json())
-  .then(data=>{ setUser(data) })
+  .then(data=>{
+    setUser(data)
+    // ✅ Une esta dependencia a su room privado
+    socket.emit("join_room", data.dependency_id)
+  })
 },[])
 
 useEffect(()=>{
-
+  // ✅ Solo recibe notificaciones de su room
   socket.on("planeacion_reviso", (data) => {
     const emoji = data.estado === "aprobado" ? "✅" : "❌"
     const msg = `${emoji} Tu ${data.tipo} del T${data.trimestre}-${data.anio} fue ${data.estado.toUpperCase()}`
-    
     setNotificaciones(prev => [{ id: Date.now(), msg, estado: data.estado }, ...prev])
 
+    // Actualiza estado en tabla
     setLineas(prev => prev.map(l =>
-      l.planning_id === data.planning_id ? { ...l, estado_revision: data.estado } : l
+      l.planning_id === data.planning_id
+        ? {
+            ...l,
+            estado_revision_p25: data.anio===2025 && data.tipo==="programado" ? data.estado : l.estado_revision_p25,
+            estado_revision_e25: data.anio===2025 && data.tipo==="ejecutado"  ? data.estado : l.estado_revision_e25,
+            estado_revision_p26: data.anio===2026 && data.tipo==="programado" ? data.estado : l.estado_revision_p26,
+            estado_revision_e26: data.anio===2026 && data.tipo==="ejecutado"  ? data.estado : l.estado_revision_e26,
+          }
+        : l
     ))
   })
-
-  return () => {
-    socket.off("planeacion_reviso")
-  }
+  return () => { socket.off("planeacion_reviso") }
 },[])
 
 if(!user) return <p>Cargando...</p>
@@ -52,10 +60,8 @@ const estrategiasAgrupadas = Object.values(
   user.estrategias.reduce((acc, e) => {
     if(!acc[e.id]){
       acc[e.id] = {
-        id: e.id,
-        name: e.name,
-        pmd_eje: e.pmd_eje,
-        pmd_tema: e.pmd_tema,
+        id: e.id, name: e.name,
+        pmd_eje: e.pmd_eje, pmd_tema: e.pmd_tema,
         pmd_politica_publica: e.pmd_politica_publica,
         pmd_objetivo: e.pmd_objetivo,
         pmd_estrategia: e.pmd_estrategia,
@@ -80,19 +86,18 @@ const estrategiasAgrupadas = Object.values(
 
 const seleccionarEstrategia = async (e) => {
   setSelectedStrategy(e)
-
   const lineasIniciales = await Promise.all(e.lineas.map(async (l) => {
     const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${l.id}`)
     const trimestres = await res.json()
 
     const get = (anio, trim, tipo) =>
-      trimestres.find(t => t.anio === anio && t.trimestre === trim && t.tipo === tipo)?.valor || ""
-
+      trimestres.find(t => t.anio===anio && t.trimestre===trim && t.tipo===tipo)?.valor || ""
     const getComentario = (anio, tipo) =>
-      trimestres.find(t => t.anio === anio && t.tipo === tipo)?.comentario || ""
-
+      trimestres.find(t => t.anio===anio && t.tipo===tipo)?.comentario || ""
     const getEstado = (anio, tipo) =>
-      trimestres.find(t => t.anio === anio && t.tipo === tipo)?.estado_revision || "pendiente"
+      trimestres.find(t => t.anio===anio && t.tipo===tipo)?.estado_revision || "pendiente"
+    const getEnvio = (anio, tipo) =>
+      trimestres.find(t => t.anio===anio && t.tipo===tipo)?.estado_envio || "borrador"
 
     return {
       ...l,
@@ -102,6 +107,10 @@ const seleccionarEstrategia = async (e) => {
       estado_revision_e25: getEstado(2025,"ejecutado"),
       estado_revision_p26: getEstado(2026,"programado"),
       estado_revision_e26: getEstado(2026,"ejecutado"),
+      envio_p25: getEnvio(2025,"programado"),
+      envio_e25: getEnvio(2025,"ejecutado"),
+      envio_p26: getEnvio(2026,"programado"),
+      envio_e26: getEnvio(2026,"ejecutado"),
       p1t: get(2025,1,"programado"), p2t: get(2025,2,"programado"),
       p3t: get(2025,3,"programado"), p4t: get(2025,4,"programado"),
       e1t: get(2025,1,"ejecutado"),  e2t: get(2025,2,"ejecutado"),
@@ -116,8 +125,24 @@ const seleccionarEstrategia = async (e) => {
       comentario26_exec: getComentario(2026,"ejecutado"),
     }
   }))
-
   setLineas(lineasIniciales)
+}
+
+const bloqueado = (l, campo) => {
+  const envioMap = {
+    p25: l.envio_p25, e25: l.envio_e25,
+    p26: l.envio_p26, e26: l.envio_e26
+  }
+  const revisionMap = {
+    p25: l.estado_revision_p25, e25: l.estado_revision_e25,
+    p26: l.estado_revision_p26, e26: l.estado_revision_e26
+  }
+
+  const envio = envioMap[campo]
+  const revision = revisionMap[campo]
+
+
+  return envio === "enviado" && revision !== "rechazado"
 }
 
 const handleChange = (index, field, value) => {
@@ -160,6 +185,13 @@ const guardarPlaneacion = async () => {
         })
       }
     }
+   setLineas(prev => prev.map(l => ({
+      ...l,
+      envio_p25: (Number(l.p1t||0)+Number(l.p2t||0)+Number(l.p3t||0)+Number(l.p4t||0)) > 0 ? "enviado" : l.envio_p25,
+      envio_e25: (Number(l.e1t||0)+Number(l.e2t||0)+Number(l.e3t||0)+Number(l.e4t||0)) > 0 ? "enviado" : l.envio_e25,
+      envio_p26: (Number(l.p1t26||0)+Number(l.p2t26||0)+Number(l.p3t26||0)+Number(l.p4t26||0)) > 0 ? "enviado" : l.envio_p26,
+      envio_e26: (Number(l.e1t26||0)+Number(l.e2t26||0)+Number(l.e3t26||0)+Number(l.e4t26||0)) > 0 ? "enviado" : l.envio_e26,
+    })))
     alert("✅ Planeación enviada para revisión")
   } catch (err) {
     console.error(err)
@@ -185,13 +217,14 @@ const EstadoBadge = ({ estado }) => {
     aprobado:  { bg:"#d1fae5", color:"#065f46" },
     rechazado: { bg:"#fee2e2", color:"#991b1b" },
     pendiente: { bg:"#fef9c3", color:"#854d0e" },
+    enviado:   { bg:"#dbeafe", color:"#1e40af" },
   }
   const c = colores[estado] || colores.pendiente
   return (
     <span style={{
       background: c.bg, color: c.color,
-      padding: "2px 8px", borderRadius: "999px",
-      fontSize: "11px", fontWeight: "600"
+      padding:"2px 8px", borderRadius:"999px",
+      fontSize:"11px", fontWeight:"600"
     }}>
       {estado}
     </span>
@@ -209,11 +242,10 @@ return(
       <button className="logout-btn" onClick={logout}>Cerrar sesión</button>
     </div>
 
+    {/* Estrategias */}
     <button className="strategy-toggle" onClick={()=>setShowStrategies(!showStrategies)}>
       Estrategias {showStrategies ? "▲" : "▼"}
     </button>
-   
-
     {showStrategies && (
       <ul className="strategy-list">
         {estrategiasAgrupadas.map((e, index) => (
@@ -227,45 +259,73 @@ return(
           </li>
         ))}
       </ul>
-      
-      
     )}
-    
-    
+
+    {/* Notificaciones */}
+    <div style={{marginTop:"16px"}}>
+      <button
+        className="strategy-toggle"
+        onClick={()=>setShowNotificaciones(!showNotificaciones)}
+        style={{position:"relative", width:"100%"}}
+      >
+        🔔 Notificaciones {showNotificaciones ? "▲" : "▼"}
+        {notificaciones.length > 0 && (
+          <span style={{
+            position:"absolute", top:"-6px", right:"-6px",
+            background:"#ef4444", color:"white",
+            borderRadius:"999px", fontSize:"10px",
+            padding:"2px 6px", fontWeight:"700"
+          }}>
+            {notificaciones.length}
+          </span>
+        )}
+      </button>
+
+      {showNotificaciones && (
+        <div style={{
+          maxHeight:"300px", overflowY:"auto",
+          display:"flex", flexDirection:"column", gap:"6px",
+          marginTop:"8px", padding:"0 4px"
+        }}>
+          {notificaciones.length === 0 ? (
+            <p style={{fontSize:"12px",color:"#888",textAlign:"center",padding:"12px"}}>
+              Sin notificaciones
+            </p>
+          ) : (
+            <>
+              {notificaciones.map(n => (
+                <div key={n.id} style={{
+                  padding:"8px 10px", borderRadius:"8px",
+                  background: n.estado==="aprobado" ? "#d1fae5" : "#fee2e2",
+                  color: n.estado==="aprobado" ? "#065f46" : "#991b1b",
+                  fontSize:"11px", fontWeight:"600",
+                  display:"flex", justifyContent:"space-between",
+                  alignItems:"flex-start", gap:"6px"
+                }}>
+                  <span>{n.msg}</span>
+                  <button
+                    onClick={()=>setNotificaciones(prev=>prev.filter(x=>x.id!==n.id))}
+                    style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"13px",flexShrink:0}}
+                  >✕</button>
+                </div>
+              ))}
+              <button
+                onClick={()=>setNotificaciones([])}
+                style={{marginTop:"4px",background:"transparent",border:"1px solid #ccc",borderRadius:"6px",padding:"4px",fontSize:"11px",cursor:"pointer",color:"#666"}}
+              >
+                Limpiar todo
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+
   </div>
 
   <div className="content">
-
-    {notificaciones.length > 0 && (
-      <div style={{marginBottom:"16px"}}>
-        {notificaciones.map(n => (
-          <div key={n.id} style={{
-            padding:"10px 16px",
-            borderRadius:"8px",
-            marginBottom:"6px",
-            background: n.estado === "aprobado" ? "#d1fae5" : "#fee2e2",
-            color: n.estado === "aprobado" ? "#065f46" : "#991b1b",
-            fontWeight:"600",
-            display:"flex",
-            justifyContent:"space-between",
-            alignItems:"center"
-          }}>
-            {n.msg}
-            <button
-              onClick={()=>setNotificaciones(prev=>prev.filter(x=>x.id!==n.id))}
-              style={{background:"transparent",border:"none",cursor:"pointer",fontSize:"16px"}}
-            >✕</button>
-          </div>
-          
-        ))}
-      </div>
-      
-    )}
-
     {!selectedStrategy && (
-      <div className="empty-panel">
-        <h2>Selecciona una estrategia</h2>
-      </div>
+      <div className="empty-panel"><h2>Selecciona una estrategia</h2></div>
     )}
 
     {selectedStrategy && (
@@ -273,11 +333,11 @@ return(
         <h2>{selectedStrategy.name}</h2>
 
         <div className="planning-grid">
-          <div><label>EJE</label><p>{selectedStrategy.pmd_eje || "-"}</p></div>
-          <div><label>TEMA</label><p>{selectedStrategy.pmd_tema || "-"}</p></div>
-          <div><label>POLÍTICA PÚBLICA</label><p>{selectedStrategy.pmd_politica_publica || "-"}</p></div>
-          <div><label>OBJETIVO</label><p>{selectedStrategy.pmd_objetivo || "-"}</p></div>
-          <div><label>ESTRATEGIA PMD</label><p>{selectedStrategy.pmd_estrategia || "-"}</p></div>
+          <div><label>EJE</label><p>{selectedStrategy.pmd_eje||"-"}</p></div>
+          <div><label>TEMA</label><p>{selectedStrategy.pmd_tema||"-"}</p></div>
+          <div><label>POLÍTICA PÚBLICA</label><p>{selectedStrategy.pmd_politica_publica||"-"}</p></div>
+          <div><label>OBJETIVO</label><p>{selectedStrategy.pmd_objetivo||"-"}</p></div>
+          <div><label>ESTRATEGIA PMD</label><p>{selectedStrategy.pmd_estrategia||"-"}</p></div>
         </div>
 
         <h3 style={{marginTop:"20px"}}>Planeación</h3>
@@ -307,42 +367,46 @@ return(
                   <td>{i+1}</td>
                   <td>{l.lineas_accion}</td>
                   <td>
-                    {l.estado === "Pendiente"
+                    {l.estado==="Pendiente"
                       ? <span className="estado-pendiente">Pendiente</span>
                       : <span className="estado-aprobado">Aprobado</span>
                     }
                   </td>
 
-                  <td><input value={l.p1t} onChange={(e)=>handleChange(i,"p1t",e.target.value)}/></td>
-                  <td><input value={l.p2t} onChange={(e)=>handleChange(i,"p2t",e.target.value)}/></td>
-                  <td><input value={l.p3t} onChange={(e)=>handleChange(i,"p3t",e.target.value)}/></td>
-                  <td><input value={l.p4t} onChange={(e)=>handleChange(i,"p4t",e.target.value)}/></td>
+                  {/* Programado 2025 */}
+                  <td><input disabled={bloqueado(l,"p25")} value={l.p1t} onChange={(e)=>handleChange(i,"p1t",e.target.value)} style={bloqueado(l,"p25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"p25")} value={l.p2t} onChange={(e)=>handleChange(i,"p2t",e.target.value)} style={bloqueado(l,"p25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"p25")} value={l.p3t} onChange={(e)=>handleChange(i,"p3t",e.target.value)} style={bloqueado(l,"p25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"p25")} value={l.p4t} onChange={(e)=>handleChange(i,"p4t",e.target.value)} style={bloqueado(l,"p25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td>{Number(l.p1t||0)+Number(l.p2t||0)+Number(l.p3t||0)+Number(l.p4t||0)}</td>
-                  <td><textarea value={l.comentario25||""} onChange={(e)=>handleChange(i,"comentario25",e.target.value)}/></td>
+                  <td><textarea disabled={bloqueado(l,"p25")} value={l.comentario25||""} onChange={(e)=>handleChange(i,"comentario25",e.target.value)} style={bloqueado(l,"p25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td><EstadoBadge estado={l.estado_revision_p25||"pendiente"}/></td>
 
-                  <td><input value={l.e1t} onChange={(e)=>handleChange(i,"e1t",e.target.value)}/></td>
-                  <td><input value={l.e2t} onChange={(e)=>handleChange(i,"e2t",e.target.value)}/></td>
-                  <td><input value={l.e3t} onChange={(e)=>handleChange(i,"e3t",e.target.value)}/></td>
-                  <td><input value={l.e4t} onChange={(e)=>handleChange(i,"e4t",e.target.value)}/></td>
+                  {/* Ejecutado 2025 */}
+                  <td><input disabled={bloqueado(l,"e25")} value={l.e1t} onChange={(e)=>handleChange(i,"e1t",e.target.value)} style={bloqueado(l,"e25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"e25")} value={l.e2t} onChange={(e)=>handleChange(i,"e2t",e.target.value)} style={bloqueado(l,"e25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"e25")} value={l.e3t} onChange={(e)=>handleChange(i,"e3t",e.target.value)} style={bloqueado(l,"e25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"e25")} value={l.e4t} onChange={(e)=>handleChange(i,"e4t",e.target.value)} style={bloqueado(l,"e25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td>{Number(l.e1t||0)+Number(l.e2t||0)+Number(l.e3t||0)+Number(l.e4t||0)}</td>
-                  <td><textarea value={l.comentario25_exec||""} onChange={(e)=>handleChange(i,"comentario25_exec",e.target.value)}/></td>
+                  <td><textarea disabled={bloqueado(l,"e25")} value={l.comentario25_exec||""} onChange={(e)=>handleChange(i,"comentario25_exec",e.target.value)} style={bloqueado(l,"e25")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td><EstadoBadge estado={l.estado_revision_e25||"pendiente"}/></td>
 
-                  <td><input value={l.p1t26} onChange={(e)=>handleChange(i,"p1t26",e.target.value)}/></td>
-                  <td><input value={l.p2t26} onChange={(e)=>handleChange(i,"p2t26",e.target.value)}/></td>
-                  <td><input value={l.p3t26} onChange={(e)=>handleChange(i,"p3t26",e.target.value)}/></td>
-                  <td><input value={l.p4t26} onChange={(e)=>handleChange(i,"p4t26",e.target.value)}/></td>
+                  {/* Programado 2026 */}
+                  <td><input disabled={bloqueado(l,"p26")} value={l.p1t26} onChange={(e)=>handleChange(i,"p1t26",e.target.value)} style={bloqueado(l,"p26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"p26")} value={l.p2t26} onChange={(e)=>handleChange(i,"p2t26",e.target.value)} style={bloqueado(l,"p26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"p26")} value={l.p3t26} onChange={(e)=>handleChange(i,"p3t26",e.target.value)} style={bloqueado(l,"p26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"p26")} value={l.p4t26} onChange={(e)=>handleChange(i,"p4t26",e.target.value)} style={bloqueado(l,"p26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td>{Number(l.p1t26||0)+Number(l.p2t26||0)+Number(l.p3t26||0)+Number(l.p4t26||0)}</td>
-                  <td><textarea value={l.comentario26||""} onChange={(e)=>handleChange(i,"comentario26",e.target.value)}/></td>
+                  <td><textarea disabled={bloqueado(l,"p26")} value={l.comentario26||""} onChange={(e)=>handleChange(i,"comentario26",e.target.value)} style={bloqueado(l,"p26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td><EstadoBadge estado={l.estado_revision_p26||"pendiente"}/></td>
 
-                  <td><input value={l.e1t26} onChange={(e)=>handleChange(i,"e1t26",e.target.value)}/></td>
-                  <td><input value={l.e2t26} onChange={(e)=>handleChange(i,"e2t26",e.target.value)}/></td>
-                  <td><input value={l.e3t26} onChange={(e)=>handleChange(i,"e3t26",e.target.value)}/></td>
-                  <td><input value={l.e4t26} onChange={(e)=>handleChange(i,"e4t26",e.target.value)}/></td>
+                  {/* Ejecutado 2026 */}
+                  <td><input disabled={bloqueado(l,"e26")} value={l.e1t26} onChange={(e)=>handleChange(i,"e1t26",e.target.value)} style={bloqueado(l,"e26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"e26")} value={l.e2t26} onChange={(e)=>handleChange(i,"e2t26",e.target.value)} style={bloqueado(l,"e26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"e26")} value={l.e3t26} onChange={(e)=>handleChange(i,"e3t26",e.target.value)} style={bloqueado(l,"e26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
+                  <td><input disabled={bloqueado(l,"e26")} value={l.e4t26} onChange={(e)=>handleChange(i,"e4t26",e.target.value)} style={bloqueado(l,"e26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td>{Number(l.e1t26||0)+Number(l.e2t26||0)+Number(l.e3t26||0)+Number(l.e4t26||0)}</td>
-                  <td><textarea value={l.comentario26_exec||""} onChange={(e)=>handleChange(i,"comentario26_exec",e.target.value)}/></td>
+                  <td><textarea disabled={bloqueado(l,"e26")} value={l.comentario26_exec||""} onChange={(e)=>handleChange(i,"comentario26_exec",e.target.value)} style={bloqueado(l,"e26")?{background:"#f3f4f6",color:"#9ca3af"}:{}}/></td>
                   <td><EstadoBadge estado={l.estado_revision_e26||"pendiente"}/></td>
 
                 </tr>
@@ -352,8 +416,12 @@ return(
         </div>
 
         <div className="save-container">
-          <button className="save-btn" onClick={guardarPlaneacion}>Guardar</button>
-          <button className="add-line-btn" onClick={()=>setModalLinea(true)}>Añadir línea</button>
+          <button className="save-btn" onClick={guardarPlaneacion}>
+            Guardar y enviar a revisión
+          </button>
+          <button className="add-line-btn" onClick={()=>setModalLinea(true)}>
+            Añadir línea
+          </button>
         </div>
 
       </div>
