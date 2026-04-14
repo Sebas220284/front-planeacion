@@ -37,7 +37,6 @@ export const generarPDF = (dependencia, estrategias, trimestres, filtro, enlace,
     doc.text("SISTEMA DE PLANEACIÓN MUNICIPAL", 200, y + 5.5, { align: "center" })
     
     y += 14
-
     doc.setFillColor(40, 40, 40)
     doc.rect(10, y, 260, 7, "F")
     doc.setTextColor(255, 255, 255)
