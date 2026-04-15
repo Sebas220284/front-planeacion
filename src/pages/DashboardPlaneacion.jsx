@@ -15,7 +15,9 @@ export default function DashboardPlaneacion() {
   const [showLineasPendientes, setShowLineasPendientes] = useState(true);
   const [modalRechazar, setModalRechazar] = useState(null);
   const [comentarioRechazo, setComentarioRechazo] = useState("");
+  const [anioFiltro, setAnioFiltro] = useState(2025); // 🆕 Filtro de año
   const navigate = useNavigate();
+  const años = [2025, 2026]; // Fácil de ampliar
 
   const eliminarLineaDeAccion = async (lineaId) => {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción? Se borrarán permanentemente todos sus datos.");
@@ -77,16 +79,12 @@ export default function DashboardPlaneacion() {
 
     fetchData();
 
-    socket.on("nueva_linea_pendiente", (data) => {
-      setLineasPendientes((prev) => [data, ...prev]);
-    });
-
+    socket.on("nueva_linea_pendiente", (data) => setLineasPendientes((prev) => [data, ...prev]));
     socket.on("trimestre_actualizado", async (data) => {
       const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${data.planning_id}`);
       const t = await res.json();
       setTrimestres((prev) => ({ ...prev, [data.planning_id]: t }));
     });
-
     socket.on("revision-trimestre", (data) => {
       setTrimestres((prev) => {
         const lista = prev[data.planning_id] || [];
@@ -185,7 +183,6 @@ export default function DashboardPlaneacion() {
         <button className="menu-btn" onClick={() => setOpenDependencias(!openDependencias)}>
           Dependencias {openDependencias ? "▲" : "▼"}
         </button>
-
         <div className={`submenu ${openDependencias ? "open" : ""}`}>
           {dependencias.map((dep) => (
             <button key={dep.id} className={`dep-item ${dep.id === activa ? "active" : ""}`} onClick={() => setActiva(dep.id)}>
@@ -195,11 +192,7 @@ export default function DashboardPlaneacion() {
         </div>
 
         <div style={{ marginTop: "16px" }}>
-          <button
-            className="menu-btn"
-            onClick={() => setShowLineasPendientes(!showLineasPendientes)}
-            style={{ position: "relative", width: "100%" }}
-          >
+          <button className="menu-btn" onClick={() => setShowLineasPendientes(!showLineasPendientes)} style={{ position: "relative", width: "100%" }}>
             📋 Líneas pendientes {showLineasPendientes ? "▲" : "▼"}
             {lineasPendientes.length > 0 && (
               <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#ef4444", color: "white", borderRadius: "999px", fontSize: "10px", padding: "2px 6px", fontWeight: "700" }}>
@@ -207,7 +200,6 @@ export default function DashboardPlaneacion() {
               </span>
             )}
           </button>
-
           {showLineasPendientes && (
             <div style={{ maxHeight: "400px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", padding: "0 4px" }}>
               {lineasPendientes.length === 0 ? (
@@ -247,7 +239,33 @@ export default function DashboardPlaneacion() {
       </div>
 
       <div className="contenido">
-        <h2 className="titulo">{dependencia ? dependencia.name : "Selecciona una dependencia"}</h2>
+        {/* 🆕 HEADER CON SELECTOR DE AÑO */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+          <h2 className="titulo" style={{ margin: 0 }}>
+            {dependencia ? dependencia.name : "Selecciona una dependencia"}
+          </h2>
+          <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
+            {años.map(a => (
+              <button
+                key={a}
+                onClick={() => setAnioFiltro(a)}
+                style={{
+                  padding: "6px 20px",
+                  borderRadius: "8px",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: "700",
+                  fontSize: "13px",
+                  background: anioFiltro === a ? "#2563eb" : "transparent",
+                  color: anioFiltro === a ? "white" : "#6b7280",
+                  transition: "all 0.15s",
+                }}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {dependencia && Object.values(dependencia.estrategias || {}).map((est) => (
           <div key={est.id} className="card">
@@ -263,16 +281,14 @@ export default function DashboardPlaneacion() {
                     <th rowSpan="2">Acción</th>
                     <th rowSpan="2">#</th>
                     <th rowSpan="2">Línea de acción</th>
-                    <th colSpan="7">Programado 2025</th>
-                    <th colSpan="7">Ejecutado 2025</th>
-                    <th colSpan="7">Programado 2026</th>
-                    <th colSpan="7">Ejecutado 2026</th>
+                    <th colSpan="7">Programado {anioFiltro}</th>
+                    <th colSpan="7">Ejecutado {anioFiltro}</th>
                   </tr>
                   <tr>
-                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
+                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
+                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {est.lineas.map((linea, i) => (
                     <tr key={`${est.id}-${i}-${linea.id}`}>
@@ -284,11 +300,11 @@ export default function DashboardPlaneacion() {
                       </td>
                       <td>{i + 1}</td>
                       <td style={{ minWidth: "200px" }}>{linea.lineas_accion}</td>
+
+                      {/* 🆕 Solo renderiza el año filtrado */}
                       {[
-                        { anio: 2025, tipo: "programado" },
-                        { anio: 2025, tipo: "ejecutado" },
-                        { anio: 2026, tipo: "programado" },
-                        { anio: 2026, tipo: "ejecutado" },
+                        { anio: anioFiltro, tipo: "programado" },
+                        { anio: anioFiltro, tipo: "ejecutado" },
                       ].map(({ anio, tipo }) => (
                         <React.Fragment key={`${est.id}-${linea.id}-${i}-${anio}-${tipo}`}>
                           <td>{getValor(linea.id, anio, 1, tipo)}</td>
@@ -329,6 +345,7 @@ export default function DashboardPlaneacion() {
         )}
       </div>
 
+      {/* Modales sin cambios */}
       {modalPDF && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
@@ -349,17 +366,10 @@ export default function DashboardPlaneacion() {
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button onClick={() => setModalPDF(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer", background: "white" }}>Cancelar</button>
               <button
-              onClick={() => {
-  generarPDF(
-    dependencia,
-    dependencia.estrategias,
-    trimestres,
-    filtroPDF,
-    dependencia.enlace,  
-    dependencia.titular  
-  )
-  setModalPDF(false)
-}}
+                onClick={() => {
+                  generarPDF(dependencia, dependencia.estrategias, trimestres, filtroPDF, dependencia.enlace, dependencia.titular);
+                  setModalPDF(false);
+                }}
                 style={{ padding: "8px 16px", borderRadius: "6px", background: "#dc2626", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}
               >📄 Descargar PDF</button>
             </div>
@@ -393,7 +403,6 @@ export default function DashboardPlaneacion() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

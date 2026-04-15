@@ -11,6 +11,7 @@ export default function DashboardDependencias() {
   const [modalLinea, setModalLinea] = useState(false);
   const [nuevaLinea, setNuevaLinea] = useState("");
   const [notificaciones, setNotificaciones] = useState([]);
+  const [anioFiltro, setAnioFiltro] = useState(2025); // 🆕 Filtro de año
 
   const logout = () => {
     localStorage.removeItem("token");
@@ -30,10 +31,9 @@ export default function DashboardDependencias() {
   }, []);
 
   useEffect(() => {
-    // Definimos las funciones de manejo para poder limpiarlas correctamente
     const handleLineaRevisada = (data) => {
       setNotificaciones(prev => [{
-        id: `${Date.now()}-${Math.random()}`, // ID único para evitar errores de render
+        id: `${Date.now()}-${Math.random()}`,
         msg: data.mensaje,
         estado: data.estado
       }, ...prev]);
@@ -59,7 +59,6 @@ export default function DashboardDependencias() {
 
     socket.on("linea_revisada", handleLineaRevisada);
     socket.on("planeacion_reviso", handlePlaneacionReviso);
-
     return () => {
       socket.off("linea_revisada", handleLineaRevisada);
       socket.off("planeacion_reviso", handlePlaneacionReviso);
@@ -94,22 +93,22 @@ export default function DashboardDependencias() {
       })
       return acc
     }, {})
-  )
+  );
 
   const seleccionarEstrategia = async (e) => {
-    setSelectedStrategy(e)
+    setSelectedStrategy(e);
     const lineasIniciales = await Promise.all(e.lineas.map(async (l) => {
-      const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${l.id}`)
-      const trimestres = await res.json()
+      const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${l.id}`);
+      const trimestres = await res.json();
 
       const get = (anio, trim, tipo) =>
-        trimestres.find(t => t.anio === anio && t.trimestre === trim && t.tipo === tipo)?.valor || ""
+        trimestres.find(t => t.anio === anio && t.trimestre === trim && t.tipo === tipo)?.valor || "";
       const getComentario = (anio, tipo) =>
-        trimestres.find(t => t.anio === anio && t.tipo === tipo)?.comentario || ""
+        trimestres.find(t => t.anio === anio && t.tipo === tipo)?.comentario || "";
       const getEstado = (anio, tipo) =>
-        trimestres.find(t => t.anio === anio && t.tipo === tipo)?.estado_revision || "pendiente"
+        trimestres.find(t => t.anio === anio && t.tipo === tipo)?.estado_revision || "pendiente";
       const getEnvio = (anio, tipo) =>
-        trimestres.find(t => t.anio === anio && t.tipo === tipo)?.estado_envio || "borrador"
+        trimestres.find(t => t.anio === anio && t.tipo === tipo)?.estado_envio || "borrador";
 
       return {
         ...l,
@@ -125,62 +124,54 @@ export default function DashboardDependencias() {
         envio_e26: getEnvio(2026, "ejecutado"),
         p1t: get(2025, 1, "programado"), p2t: get(2025, 2, "programado"),
         p3t: get(2025, 3, "programado"), p4t: get(2025, 4, "programado"),
-        e1t: get(2025, 1, "ejecutado"), e2t: get(2025, 2, "ejecutado"),
-        e3t: get(2025, 3, "ejecutado"), e4t: get(2025, 4, "ejecutado"),
+        e1t: get(2025, 1, "ejecutado"),  e2t: get(2025, 2, "ejecutado"),
+        e3t: get(2025, 3, "ejecutado"),  e4t: get(2025, 4, "ejecutado"),
         comentario25: getComentario(2025, "programado"),
         comentario25_exec: getComentario(2025, "ejecutado"),
         p1t26: get(2026, 1, "programado"), p2t26: get(2026, 2, "programado"),
         p3t26: get(2026, 3, "programado"), p4t26: get(2026, 4, "programado"),
-        e1t26: get(2026, 1, "ejecutado"), e2t26: get(2026, 2, "ejecutado"),
-        e3t26: get(2026, 3, "ejecutado"), e4t26: get(2026, 4, "ejecutado"),
+        e1t26: get(2026, 1, "ejecutado"),  e2t26: get(2026, 2, "ejecutado"),
+        e3t26: get(2026, 3, "ejecutado"),  e4t26: get(2026, 4, "ejecutado"),
         comentario26: getComentario(2026, "programado"),
         comentario26_exec: getComentario(2026, "ejecutado"),
-      }
-    }))
-    setLineas(lineasIniciales)
-  }
+      };
+    }));
+    setLineas(lineasIniciales);
+  };
 
   const bloqueado = (l, campo) => {
-    const envioMap = {
-      p25: l.envio_p25, e25: l.envio_e25,
-      p26: l.envio_p26, e26: l.envio_e26
-    }
-    const revisionMap = {
-      p25: l.estado_revision_p25, e25: l.estado_revision_e25,
-      p26: l.estado_revision_p26, e26: l.estado_revision_e26
-    }
-    const envio = envioMap[campo]
-    const revision = revisionMap[campo]
-    return envio === "enviado" && revision !== "rechazado"
-  }
+    const envioMap    = { p25: l.envio_p25, e25: l.envio_e25, p26: l.envio_p26, e26: l.envio_e26 };
+    const revisionMap = { p25: l.estado_revision_p25, e25: l.estado_revision_e25, p26: l.estado_revision_p26, e26: l.estado_revision_e26 };
+    return envioMap[campo] === "enviado" && revisionMap[campo] !== "rechazado";
+  };
 
   const handleChange = (index, field, value) => {
-    const nuevas = [...lineas]
-    nuevas[index][field] = value
-    setLineas(nuevas)
-  }
+    const nuevas = [...lineas];
+    nuevas[index][field] = value;
+    setLineas(nuevas);
+  };
 
   const guardarPlaneacion = async () => {
     try {
       for (const l of lineas) {
         const registros = [
-          { anio: 2025, trimestre: 1, tipo: "programado", valor: l.p1t, comentario: l.comentario25 },
-          { anio: 2025, trimestre: 2, tipo: "programado", valor: l.p2t, comentario: l.comentario25 },
-          { anio: 2025, trimestre: 3, tipo: "programado", valor: l.p3t, comentario: l.comentario25 },
-          { anio: 2025, trimestre: 4, tipo: "programado", valor: l.p4t, comentario: l.comentario25 },
-          { anio: 2025, trimestre: 1, tipo: "ejecutado", valor: l.e1t, comentario: l.comentario25_exec },
-          { anio: 2025, trimestre: 2, tipo: "ejecutado", valor: l.e2t, comentario: l.comentario25_exec },
-          { anio: 2025, trimestre: 3, tipo: "ejecutado", valor: l.e3t, comentario: l.comentario25_exec },
-          { anio: 2025, trimestre: 4, tipo: "ejecutado", valor: l.e4t, comentario: l.comentario25_exec },
+          { anio: 2025, trimestre: 1, tipo: "programado", valor: l.p1t,   comentario: l.comentario25 },
+          { anio: 2025, trimestre: 2, tipo: "programado", valor: l.p2t,   comentario: l.comentario25 },
+          { anio: 2025, trimestre: 3, tipo: "programado", valor: l.p3t,   comentario: l.comentario25 },
+          { anio: 2025, trimestre: 4, tipo: "programado", valor: l.p4t,   comentario: l.comentario25 },
+          { anio: 2025, trimestre: 1, tipo: "ejecutado",  valor: l.e1t,   comentario: l.comentario25_exec },
+          { anio: 2025, trimestre: 2, tipo: "ejecutado",  valor: l.e2t,   comentario: l.comentario25_exec },
+          { anio: 2025, trimestre: 3, tipo: "ejecutado",  valor: l.e3t,   comentario: l.comentario25_exec },
+          { anio: 2025, trimestre: 4, tipo: "ejecutado",  valor: l.e4t,   comentario: l.comentario25_exec },
           { anio: 2026, trimestre: 1, tipo: "programado", valor: l.p1t26, comentario: l.comentario26 },
           { anio: 2026, trimestre: 2, tipo: "programado", valor: l.p2t26, comentario: l.comentario26 },
           { anio: 2026, trimestre: 3, tipo: "programado", valor: l.p3t26, comentario: l.comentario26 },
           { anio: 2026, trimestre: 4, tipo: "programado", valor: l.p4t26, comentario: l.comentario26 },
-          { anio: 2026, trimestre: 1, tipo: "ejecutado", valor: l.e1t26, comentario: l.comentario26_exec },
-          { anio: 2026, trimestre: 2, tipo: "ejecutado", valor: l.e2t26, comentario: l.comentario26_exec },
-          { anio: 2026, trimestre: 3, tipo: "ejecutado", valor: l.e3t26, comentario: l.comentario26_exec },
-          { anio: 2026, trimestre: 4, tipo: "ejecutado", valor: l.e4t26, comentario: l.comentario26_exec },
-        ]
+          { anio: 2026, trimestre: 1, tipo: "ejecutado",  valor: l.e1t26, comentario: l.comentario26_exec },
+          { anio: 2026, trimestre: 2, tipo: "ejecutado",  valor: l.e2t26, comentario: l.comentario26_exec },
+          { anio: 2026, trimestre: 3, tipo: "ejecutado",  valor: l.e3t26, comentario: l.comentario26_exec },
+          { anio: 2026, trimestre: 4, tipo: "ejecutado",  valor: l.e4t26, comentario: l.comentario26_exec },
+        ];
         for (const r of registros) {
           await fetch("http://localhost:3001/api/trimestres/guardar", {
             method: "POST",
@@ -191,52 +182,63 @@ export default function DashboardDependencias() {
               tipo: r.tipo, valor: r.valor || 0,
               comentario: r.comentario || ""
             })
-          })
+          });
         }
       }
       setLineas(prev => prev.map(l => ({
         ...l,
-        envio_p25: (Number(l.p1t || 0) + Number(l.p2t || 0) + Number(l.p3t || 0) + Number(l.p4t || 0)) > 0 ? "enviado" : l.envio_p25,
-        envio_e25: (Number(l.e1t || 0) + Number(l.e2t || 0) + Number(l.e3t || 0) + Number(l.e4t || 0)) > 0 ? "enviado" : l.envio_e25,
-        envio_p26: (Number(l.p1t26 || 0) + Number(l.p2t26 || 0) + Number(l.p3t26 || 0) + Number(l.p4t26 || 0)) > 0 ? "enviado" : l.envio_p26,
-        envio_e26: (Number(l.e1t26 || 0) + Number(l.e2t26 || 0) + Number(l.e3t26 || 0) + Number(l.e4t26 || 0)) > 0 ? "enviado" : l.envio_e26,
-      })))
-      alert("✅ Planeación enviada para revisión")
+        envio_p25: (Number(l.p1t||0)+Number(l.p2t||0)+Number(l.p3t||0)+Number(l.p4t||0)) > 0 ? "enviado" : l.envio_p25,
+        envio_e25: (Number(l.e1t||0)+Number(l.e2t||0)+Number(l.e3t||0)+Number(l.e4t||0)) > 0 ? "enviado" : l.envio_e25,
+        envio_p26: (Number(l.p1t26||0)+Number(l.p2t26||0)+Number(l.p3t26||0)+Number(l.p4t26||0)) > 0 ? "enviado" : l.envio_p26,
+        envio_e26: (Number(l.e1t26||0)+Number(l.e2t26||0)+Number(l.e3t26||0)+Number(l.e4t26||0)) > 0 ? "enviado" : l.envio_e26,
+      })));
+      alert("✅ Planeación enviada para revisión");
     } catch (err) {
-      console.error(err); alert("Error al guardar")
+      console.error(err); alert("Error al guardar");
     }
-  }
+  };
 
   const enviarRevision = async () => {
-    if (!nuevaLinea.trim()) return
+    if (!nuevaLinea.trim()) return;
     const res = await fetch("http://localhost:3001/api/lineas/nueva", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estrategia_id: selectedStrategy.id, lineas_accion: nuevaLinea })
-    })
-    const data = await res.json()
-    setLineas([...lineas, data])
-    setNuevaLinea(""); setModalLinea(false)
-  }
+    });
+    const data = await res.json();
+    setLineas([...lineas, data]);
+    setNuevaLinea(""); setModalLinea(false);
+  };
 
   const EstadoBadge = ({ estado }) => {
     const colores = {
       aprobado: { bg: "#d1fae5", color: "#065f46" },
       rechazado: { bg: "#fee2e2", color: "#991b1b" },
       pendiente: { bg: "#fef9c3", color: "#854d0e" },
-      enviado: { bg: "#dbeafe", color: "#1e40af" },
-    }
-    const c = colores[estado] || colores.pendiente
+      enviado:   { bg: "#dbeafe", color: "#1e40af" },
+    };
+    const c = colores[estado] || colores.pendiente;
     return (
-      <span style={{
-        background: c.bg, color: c.color,
-        padding: "2px 8px", borderRadius: "999px",
-        fontSize: "11px", fontWeight: "600"
-      }}>
+      <span style={{ background: c.bg, color: c.color, padding: "2px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: "600" }}>
         {estado}
       </span>
-    )
-  }
+    );
+  };
+
+  // 🆕 Configuración de columnas por año
+  const colsAnio = {
+    2025: {
+      prog: { campos: ["p1t","p2t","p3t","p4t"], comentario: "comentario25",      bloqueo: "p25", estado: "estado_revision_p25" },
+      exec: { campos: ["e1t","e2t","e3t","e4t"], comentario: "comentario25_exec", bloqueo: "e25", estado: "estado_revision_e25" },
+    },
+    2026: {
+      prog: { campos: ["p1t26","p2t26","p3t26","p4t26"], comentario: "comentario26",      bloqueo: "p26", estado: "estado_revision_p26" },
+      exec: { campos: ["e1t26","e2t26","e3t26","e4t26"], comentario: "comentario26_exec", bloqueo: "e26", estado: "estado_revision_e26" },
+    },
+  };
+
+  const cols = colsAnio[anioFiltro];
+  const años = [2025, 2026]; // Fácil de ampliar a más años
 
   return (
     <div className="layout">
@@ -311,7 +313,32 @@ export default function DashboardDependencias() {
               <div><label>ESTRATEGIA PMD</label><p>{selectedStrategy.pmd_estrategia || "-"}</p></div>
             </div>
 
-            <h3 style={{ marginTop: "20px" }}>Planeación</h3>
+            {/* 🆕 SELECTOR DE AÑO */}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "20px 0 12px" }}>
+              <h3 style={{ margin: 0 }}>Planeación</h3>
+              <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
+                {años.map(a => (
+                  <button
+                    key={a}
+                    onClick={() => setAnioFiltro(a)}
+                    style={{
+                      padding: "6px 18px",
+                      borderRadius: "8px",
+                      border: "none",
+                      cursor: "pointer",
+                      fontWeight: "700",
+                      fontSize: "13px",
+                      background: anioFiltro === a ? "#2563eb" : "transparent",
+                      color: anioFiltro === a ? "white" : "#6b7280",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="table-container">
               <table className="excel-table">
                 <thead>
@@ -319,67 +346,81 @@ export default function DashboardDependencias() {
                     <th rowSpan="2">#</th>
                     <th rowSpan="2">Línea de acción</th>
                     <th rowSpan="2">Estado</th>
-                    <th colSpan="7">Programado 2025</th>
-                    <th colSpan="7">Ejecutado 2025</th>
-                    <th colSpan="7">Programado 2026</th>
-                    <th colSpan="7">Ejecutado 2026</th>
+                    <th colSpan="7">Programado {anioFiltro}</th>
+                    <th colSpan="7">Ejecutado {anioFiltro}</th>
                   </tr>
                   <tr>
-                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Acumulado</th><th>Comentarios</th><th>Revisión</th>
-                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Acumulado</th><th>Comentarios</th><th>Revisión</th>
                     <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Acumulado</th><th>Comentarios</th><th>Revisión</th>
                     <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Acumulado</th><th>Comentarios</th><th>Revisión</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {lineas.map((l, i) => (
-                    <tr key={`${l.planning_id}-${i}`}>
-                      <td>{i + 1}</td>
-                      <td>{l.lineas_accion}</td>
-                      <td>
-                        {l.estado === "Pendiente"
-                          ? <span className="estado-pendiente">Pendiente</span>
-                          : <span className="estado-aprobado">Aprobado</span>
-                        }
-                      </td>
+                  {lineas.map((l, i) => {
+                    const pCampos = cols.prog.campos;
+                    const eCampos = cols.exec.campos;
+                    const pBloq = bloqueado(l, cols.prog.bloqueo);
+                    const eBloq = bloqueado(l, cols.exec.bloqueo);
+                    const pAcum = pCampos.reduce((s, c) => s + Number(l[c] || 0), 0);
+                    const eAcum = eCampos.reduce((s, c) => s + Number(l[c] || 0), 0);
+                    const stiloBloq = { background: "#f3f4f6", color: "#9ca3af" };
 
-                      {/* Programado 2025 */}
-                      <td><input disabled={bloqueado(l, "p25")} value={l.p1t} onChange={(e) => handleChange(i, "p1t", e.target.value)} style={bloqueado(l, "p25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "p25")} value={l.p2t} onChange={(e) => handleChange(i, "p2t", e.target.value)} style={bloqueado(l, "p25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "p25")} value={l.p3t} onChange={(e) => handleChange(i, "p3t", e.target.value)} style={bloqueado(l, "p25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "p25")} value={l.p4t} onChange={(e) => handleChange(i, "p4t", e.target.value)} style={bloqueado(l, "p25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td>{Number(l.p1t || 0) + Number(l.p2t || 0) + Number(l.p3t || 0) + Number(l.p4t || 0)}</td>
-                      <td><textarea disabled={bloqueado(l, "p25")} value={l.comentario25 || ""} onChange={(e) => handleChange(i, "comentario25", e.target.value)} style={bloqueado(l, "p25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><EstadoBadge estado={l.estado_revision_p25 || "pendiente"} /></td>
+                    return (
+                      <tr key={`${l.planning_id}-${i}`}>
+                        <td>{i + 1}</td>
+                        <td>{l.lineas_accion}</td>
+                        <td>
+                          {l.estado === "Pendiente"
+                            ? <span className="estado-pendiente">Pendiente</span>
+                            : <span className="estado-aprobado">Aprobado</span>
+                          }
+                        </td>
 
-                      {/* Ejecutado 2025 */}
-                      <td><input disabled={bloqueado(l, "e25")} value={l.e1t} onChange={(e) => handleChange(i, "e1t", e.target.value)} style={bloqueado(l, "e25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "e25")} value={l.e2t} onChange={(e) => handleChange(i, "e2t", e.target.value)} style={bloqueado(l, "e25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "e25")} value={l.e3t} onChange={(e) => handleChange(i, "e3t", e.target.value)} style={bloqueado(l, "e25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "e25")} value={l.e4t} onChange={(e) => handleChange(i, "e4t", e.target.value)} style={bloqueado(l, "e25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td>{Number(l.e1t || 0) + Number(l.e2t || 0) + Number(l.e3t || 0) + Number(l.e4t || 0)}</td>
-                      <td><textarea disabled={bloqueado(l, "e25")} value={l.comentario25_exec || ""} onChange={(e) => handleChange(i, "comentario25_exec", e.target.value)} style={bloqueado(l, "e25") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><EstadoBadge estado={l.estado_revision_e25 || "pendiente"} /></td>
+                        {/* Programado */}
+                        {pCampos.map(campo => (
+                          <td key={campo}>
+                            <input
+                              disabled={pBloq}
+                              value={l[campo]}
+                              onChange={e => handleChange(i, campo, e.target.value)}
+                              style={pBloq ? stiloBloq : {}}
+                            />
+                          </td>
+                        ))}
+                        <td>{pAcum}</td>
+                        <td>
+                          <textarea
+                            disabled={pBloq}
+                            value={l[cols.prog.comentario] || ""}
+                            onChange={e => handleChange(i, cols.prog.comentario, e.target.value)}
+                            style={pBloq ? stiloBloq : {}}
+                          />
+                        </td>
+                        <td><EstadoBadge estado={l[cols.prog.estado] || "pendiente"} /></td>
 
-                      {/* Programado 2026 */}
-                      <td><input disabled={bloqueado(l, "p26")} value={l.p1t26} onChange={(e) => handleChange(i, "p1t26", e.target.value)} style={bloqueado(l, "p26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "p26")} value={l.p2t26} onChange={(e) => handleChange(i, "p2t26", e.target.value)} style={bloqueado(l, "p26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "p26")} value={l.p3t26} onChange={(e) => handleChange(i, "p3t26", e.target.value)} style={bloqueado(l, "p26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "p26")} value={l.p4t26} onChange={(e) => handleChange(i, "p4t26", e.target.value)} style={bloqueado(l, "p26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td>{Number(l.p1t26 || 0) + Number(l.p2t26 || 0) + Number(l.p3t26 || 0) + Number(l.p4t26 || 0)}</td>
-                      <td><textarea disabled={bloqueado(l, "p26")} value={l.comentario26 || ""} onChange={(e) => handleChange(i, "comentario26", e.target.value)} style={bloqueado(l, "p26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><EstadoBadge estado={l.estado_revision_p26 || "pendiente"} /></td>
-
-                      {/* Ejecutado 2026 */}
-                      <td><input disabled={bloqueado(l, "e26")} value={l.e1t26} onChange={(e) => handleChange(i, "e1t26", e.target.value)} style={bloqueado(l, "e26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "e26")} value={l.e2t26} onChange={(e) => handleChange(i, "e2t26", e.target.value)} style={bloqueado(l, "e26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "e26")} value={l.e3t26} onChange={(e) => handleChange(i, "e3t26", e.target.value)} style={bloqueado(l, "e26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><input disabled={bloqueado(l, "e26")} value={l.e4t26} onChange={(e) => handleChange(i, "e4t26", e.target.value)} style={bloqueado(l, "e26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td>{Number(l.e1t26 || 0) + Number(l.e2t26 || 0) + Number(l.e3t26 || 0) + Number(l.e4t26 || 0)}</td>
-                      <td><textarea disabled={bloqueado(l, "e26")} value={l.comentario26_exec || ""} onChange={(e) => handleChange(i, "comentario26_exec", e.target.value)} style={bloqueado(l, "e26") ? { background: "#f3f4f6", color: "#9ca3af" } : {}} /></td>
-                      <td><EstadoBadge estado={l.estado_revision_e26 || "pendiente"} /></td>
-                    </tr>
-                  ))}
+                        {/* Ejecutado */}
+                        {eCampos.map(campo => (
+                          <td key={campo}>
+                            <input
+                              disabled={eBloq}
+                              value={l[campo]}
+                              onChange={e => handleChange(i, campo, e.target.value)}
+                              style={eBloq ? stiloBloq : {}}
+                            />
+                          </td>
+                        ))}
+                        <td>{eAcum}</td>
+                        <td>
+                          <textarea
+                            disabled={eBloq}
+                            value={l[cols.exec.comentario] || ""}
+                            onChange={e => handleChange(i, cols.exec.comentario, e.target.value)}
+                            style={eBloq ? stiloBloq : {}}
+                          />
+                        </td>
+                        <td><EstadoBadge estado={l[cols.exec.estado] || "pendiente"} /></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -405,5 +446,5 @@ export default function DashboardDependencias() {
         </div>
       )}
     </div>
-  )
+  );
 }
