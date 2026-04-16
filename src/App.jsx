@@ -2,6 +2,8 @@ import {BrowserRouter,Routes,Route} from "react-router-dom"
 
 import Login from "./pages/Login"
 import DashboardRouter from "./pages/DashboardRouter"
+import DashboardDependencias from "./pages/DashboardDependencias"
+import DashboardPlaneacionRe from "./pages/DashboardPlaneacionRe"
 
 function App(){
 
@@ -11,9 +13,9 @@ return(
 
 <Routes>
 
-<Route path="/" element={<Login/>} />
+{/*<Route path="/" element={<Login/>} /> */}
 
-<Route path="/dashboard" element={<DashboardRouter/>} />
+<Route path="/" element={<DashboardPlaneacionRe/>} />
 
 </Routes>
 
