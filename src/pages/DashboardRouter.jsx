@@ -5,7 +5,6 @@ import DashboardDependencias from "./DashboardDependencias";
 import DashboardAdmin from "./DashboardAdmin";
 import "../styles/selectorModulos.css";
 
-// Define qué módulos puede ver cada rol
 const MODULOS_POR_ROL = {
   planeacion: ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
   admin:      ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
