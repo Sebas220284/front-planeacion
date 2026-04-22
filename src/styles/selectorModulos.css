@@ -1,0 +1,105 @@
+.selector-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-family: 'Segoe UI', sans-serif;
+  padding: 20px;
+}
+
+.selector-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.selector-header h1 {
+  color: #1e293b;
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.selector-header p {
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  max-width: 1100px;
+  width: 100%;
+}
+
+.module-card {
+  background: white;
+  padding: 40px 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+  cursor: pointer;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.module-card:hover {
+  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.1);
+  border-color: #2563eb;
+}
+
+.card-icon {
+  font-size: 3.5rem;
+  margin-bottom: 20px;
+}
+
+.module-card h3 {
+  color: #0f172a;
+  font-size: 1.4rem;
+  margin-bottom: 15px;
+}
+
+.module-card p {
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 25px;
+}
+
+.card-arrow {
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.back-to-menu {
+  position: fixed;
+  top: 15px;
+  right: 20px;
+  background: #1e293b;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 1000;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.back-to-menu:hover {
+  background: #334155;
+}
+
+.loading {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  color: #2563eb;
+}

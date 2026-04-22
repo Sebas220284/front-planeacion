@@ -15,9 +15,11 @@ export default function DashboardPlaneacion() {
   const [showLineasPendientes, setShowLineasPendientes] = useState(true);
   const [modalRechazar, setModalRechazar] = useState(null);
   const [comentarioRechazo, setComentarioRechazo] = useState("");
-  const [anioFiltro, setAnioFiltro] = useState(2025); // 🆕 Filtro de año
+  const [anioFiltro, setAnioFiltro] = useState(2025);
+  const [modalHabilitarPDF, setModalHabilitarPDF] = useState(null);
+  const [filtroHabilitar, setFiltroHabilitar] = useState({ anio: 2025, trimestre: null });
   const navigate = useNavigate();
-  const años = [2025, 2026]; // Fácil de ampliar
+  const años = [2025, 2026];
 
   const eliminarLineaDeAccion = async (lineaId) => {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción? Se borrarán permanentemente todos sus datos.");
@@ -45,6 +47,22 @@ export default function DashboardPlaneacion() {
       console.error("Error:", error);
       alert("Hubo un fallo en la conexión.");
     }
+  };
+
+  const habilitarPDF = async () => {
+    if (!dependencia) return;
+    await fetch("http://localhost:3001/api/pdf/habilitar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dependency_id: dependencia.id,
+        anio: filtroHabilitar.anio,
+        trimestre: filtroHabilitar.trimestre ?? null,
+        habilitado_por: null
+      })
+    });
+    setModalHabilitarPDF(false);
+    alert(`✅ PDF habilitado para ${dependencia.name}`);
   };
 
   useEffect(() => {
@@ -161,20 +179,6 @@ export default function DashboardPlaneacion() {
 
   const dependencia = dependencias.find((d) => d.id === activa);
 
-  const todosAprobados = (dep) => {
-    if (!dep) return false;
-    for (const est of Object.values(dep.estrategias || {})) {
-      for (const linea of est.lineas) {
-        const lista = trimestres[linea.id] || [];
-        if (lista.length === 0) return false;
-        if (lista.some(t => t.estado_revision === "rechazado" || t.estado_revision === "pendiente" || !t.estado_revision)) return false;
-      }
-    }
-    return true;
-  };
-
-  const pdfHabilitado = todosAprobados(dependencia);
-
   return (
     <div className="layout">
       <div className="sidebar">
@@ -221,10 +225,7 @@ export default function DashboardPlaneacion() {
                         }}
                         style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}
                       >✅ Aprobar</button>
-                      <button
-                        onClick={() => setModalRechazar(l)}
-                        style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}
-                      >❌ Rechazar</button>
+                      <button onClick={() => setModalRechazar(l)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}>❌ Rechazar</button>
                     </div>
                   </div>
                 ))
@@ -239,28 +240,13 @@ export default function DashboardPlaneacion() {
       </div>
 
       <div className="contenido">
-        {/* 🆕 HEADER CON SELECTOR DE AÑO */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
           <h2 className="titulo" style={{ margin: 0 }}>
             {dependencia ? dependencia.name : "Selecciona una dependencia"}
           </h2>
           <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
             {años.map(a => (
-              <button
-                key={a}
-                onClick={() => setAnioFiltro(a)}
-                style={{
-                  padding: "6px 20px",
-                  borderRadius: "8px",
-                  border: "none",
-                  cursor: "pointer",
-                  fontWeight: "700",
-                  fontSize: "13px",
-                  background: anioFiltro === a ? "#2563eb" : "transparent",
-                  color: anioFiltro === a ? "white" : "#6b7280",
-                  transition: "all 0.15s",
-                }}
-              >
+              <button key={a} onClick={() => setAnioFiltro(a)} style={{ padding: "6px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", background: anioFiltro === a ? "#2563eb" : "transparent", color: anioFiltro === a ? "white" : "#6b7280", transition: "all 0.15s" }}>
                 {a}
               </button>
             ))}
@@ -269,9 +255,17 @@ export default function DashboardPlaneacion() {
 
         {dependencia && Object.values(dependencia.estrategias || {}).map((est) => (
           <div key={est.id} className="card">
-            <div className="card-header">
-              <h3>{est.name}</h3>
-              <span className="badge">{est.lineas.length} líneas</span>
+            <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+              <h3 style={{ margin: 0 }}>{est.name}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span className="badge">{est.lineas.length} líneas</span>
+                <button
+                  onClick={() => { setModalHabilitarPDF(est.id); setFiltroHabilitar({ anio: anioFiltro, trimestre: null }); }}
+                  style={{ background: "#2563eb", color: "white", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+                >
+                  📄 Habilitar PDF
+                </button>
+              </div>
             </div>
 
             <div className="tabla-wrapper">
@@ -285,23 +279,17 @@ export default function DashboardPlaneacion() {
                     <th colSpan="7">Ejecutado {anioFiltro}</th>
                   </tr>
                   <tr>
-                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
-                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
+                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
                   </tr>
                 </thead>
                 <tbody>
                   {est.lineas.map((linea, i) => (
                     <tr key={`${est.id}-${i}-${linea.id}`}>
                       <td style={{ textAlign: "center" }}>
-                        <button
-                          onClick={() => eliminarLineaDeAccion(linea.id)}
-                          style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}
-                        >🗑️</button>
+                        <button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>🗑️</button>
                       </td>
                       <td>{i + 1}</td>
                       <td style={{ minWidth: "200px" }}>{linea.lineas_accion}</td>
-
-                      {/* 🆕 Solo renderiza el año filtrado */}
                       {[
                         { anio: anioFiltro, tipo: "programado" },
                         { anio: anioFiltro, tipo: "ejecutado" },
@@ -334,22 +322,46 @@ export default function DashboardPlaneacion() {
         {dependencia && (
           <div style={{ marginTop: "24px", marginBottom: "24px", display: "flex", justifyContent: "flex-end" }}>
             <button
-              onClick={() => pdfHabilitado && setModalPDF(true)}
-              disabled={!pdfHabilitado}
-              title={!pdfHabilitado ? "Todos los trimestres deben estar aprobados" : "Exportar PDF"}
-              style={{ background: pdfHabilitado ? "#dc2626" : "#9ca3af", color: "white", border: "none", borderRadius: "8px", padding: "10px 24px", fontSize: "14px", fontWeight: "600", cursor: pdfHabilitado ? "pointer" : "not-allowed", opacity: pdfHabilitado ? 1 : 0.6 }}
+              onClick={() => setModalPDF(true)}
+              style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "8px", padding: "10px 24px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
             >
-              📄 {pdfHabilitado ? "Exportar PDF" : "PDF (pendiente aprobación)"}
+              📄 Exportar PDF
             </button>
           </div>
         )}
       </div>
 
-      {/* Modales sin cambios */}
+      {/* Modal Habilitar PDF */}
+      {modalHabilitarPDF && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+          <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <h3 style={{ marginBottom: "16px" }}>📄 Habilitar PDF para {dependencia?.name}</h3>
+            <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Año</label>
+            <select value={filtroHabilitar.anio} onChange={e => setFiltroHabilitar(prev => ({ ...prev, anio: Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "12px" }}>
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
+            </select>
+            <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Período</label>
+            <select value={filtroHabilitar.trimestre ?? ""} onChange={e => setFiltroHabilitar(prev => ({ ...prev, trimestre: e.target.value === "" ? null : Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "20px" }}>
+              <option value="">Año completo</option>
+              <option value={1}>T1 - Enero a Marzo</option>
+              <option value={2}>T2 - Abril a Junio</option>
+              <option value={3}>T3 - Julio a Septiembre</option>
+              <option value={4}>T4 - Octubre a Diciembre</option>
+            </select>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button onClick={() => setModalHabilitarPDF(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer", background: "white" }}>Cancelar</button>
+              <button onClick={habilitarPDF} style={{ padding: "8px 16px", borderRadius: "6px", background: "#2563eb", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}>✅ Habilitar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal PDF exportar */}
       {modalPDF && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ marginBottom: "16px" }}>📄 Seleccionar período</h3>
+            <h3 style={{ marginBottom: "16px" }}>📄 Exportar PDF</h3>
             <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Año</label>
             <select value={filtroPDF.anio} onChange={e => setFiltroPDF(prev => ({ ...prev, anio: Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "12px" }}>
               <option value={2025}>2025</option>
@@ -365,29 +377,19 @@ export default function DashboardPlaneacion() {
             </select>
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button onClick={() => setModalPDF(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer", background: "white" }}>Cancelar</button>
-              <button
-                onClick={() => {
-                  generarPDF(dependencia, dependencia.estrategias, trimestres, filtroPDF, dependencia.enlace, dependencia.titular);
-                  setModalPDF(false);
-                }}
-                style={{ padding: "8px 16px", borderRadius: "6px", background: "#dc2626", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}
-              >📄 Descargar PDF</button>
+              <button onClick={() => { generarPDF(dependencia, dependencia.estrategias, trimestres, filtroPDF, dependencia.enlace, dependencia.titular); setModalPDF(false); }} style={{ padding: "8px 16px", borderRadius: "6px", background: "#dc2626", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}>📄 Descargar</button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Modal rechazar línea */}
       {modalRechazar && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "360px" }}>
             <h3 style={{ marginBottom: "12px" }}>❌ Rechazar línea</h3>
             <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "12px" }}>{modalRechazar.lineas_accion}</p>
-            <textarea
-              placeholder="Motivo del rechazo..."
-              value={comentarioRechazo}
-              onChange={e => setComentarioRechazo(e.target.value)}
-              style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "16px", minHeight: "80px", resize: "vertical" }}
-            />
+            <textarea placeholder="Motivo del rechazo..." value={comentarioRechazo} onChange={e => setComentarioRechazo(e.target.value)} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "16px", minHeight: "80px", resize: "vertical" }} />
             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
               <button onClick={() => { setModalRechazar(null); setComentarioRechazo(""); }} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer" }}>Cancelar</button>
               <button

@@ -15,7 +15,6 @@ password
 
 const data = await response.json()
 
-// guardamos token
 localStorage.setItem("token",data.token)
 
 return data
