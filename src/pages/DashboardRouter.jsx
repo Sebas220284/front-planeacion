@@ -6,9 +6,12 @@ import DashboardAdmin from "./DashboardAdmin";
 import "../styles/selectorModulos.css";
 
 const MODULOS_POR_ROL = {
-  planeacion: ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
-  admin:      ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
-  dependencias: ["SEGUIMIENTO"],
+  planeacion:             ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
+  admin:                  ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
+  planeacion_estrategica: ["ESTRATEGICA"],
+  inversion_publica:      ["INVERSION"],
+  dependencias:           ["SEGUIMIENTO"],
+  viewer:                 ["SEGUIMIENTO"],
 }
 
 const MODULOS_INFO = {
@@ -40,13 +43,9 @@ export default function DashboardRouter() {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => {
-        setUser(data)
-        const modulosPermitidos = MODULOS_POR_ROL[data.rol] || []
-        if (modulosPermitidos.length === 1) {
-          setModuloSeleccionado(modulosPermitidos[0])
-        }
-      })
+    .then(data => {
+  setUser(data)
+})
       .catch(err => console.error("Error auth:", err));
   }, []);
 
@@ -70,16 +69,20 @@ export default function DashboardRouter() {
           </div>
 
           <div className="card-grid">
-            {modulosPermitidos.map(modulo => (
-              <ModuleCard
-                key={modulo}
-                titulo={MODULOS_INFO[modulo].titulo}
-                subtitulo={MODULOS_INFO[modulo].subtitulo}
-                icon={MODULOS_INFO[modulo].icon}
-                onClick={() => setModuloSeleccionado(modulo)}
-              />
-            ))}
-          </div>
+  {Object.keys(MODULOS_INFO).map(modulo => {
+    const tieneAcceso = modulosPermitidos.includes(modulo)
+    return (
+      <ModuleCard
+        key={modulo}
+        titulo={MODULOS_INFO[modulo].titulo}
+        subtitulo={MODULOS_INFO[modulo].subtitulo}
+        icon={MODULOS_INFO[modulo].icon}
+        bloqueado={!tieneAcceso}
+        onClick={() => tieneAcceso && setModuloSeleccionado(modulo)}
+      />
+    )
+  })}
+</div>
         </motion.div>
       ) : (
         <motion.div
@@ -121,18 +124,21 @@ export default function DashboardRouter() {
   );
 }
 
-function ModuleCard({ titulo, subtitulo, icon, onClick }) {
+function ModuleCard({ titulo, subtitulo, icon, onClick, bloqueado }) {
   return (
     <motion.div
-      className="module-card"
-      whileHover={{ scale: 1.05, translateY: -10 }}
-      whileTap={{ scale: 0.95 }}
+      className={`module-card ${bloqueado ? "bloqueado" : ""}`}
+      whileHover={!bloqueado ? { scale: 1.05, translateY: -10 } : {}}
+      whileTap={!bloqueado ? { scale: 0.95 } : {}}
       onClick={onClick}
+      style={{ opacity: bloqueado ? 0.5 : 1, cursor: bloqueado ? "not-allowed" : "pointer" }}
     >
       <div className="card-icon">{icon}</div>
       <h3>{titulo}</h3>
       <p>{subtitulo}</p>
-      <div className="card-arrow">Ingresar →</div>
+      <div className="card-arrow">
+        {bloqueado ? "🔒 Sin acceso" : "Ingresar →"}
+      </div>
     </motion.div>
-  );
+  )
 }
