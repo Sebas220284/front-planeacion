@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import socket from "../services/socket"
 
 export default function DashboardEstrategica() {
-  const [vista, setVista] = useState("lista") // "lista" | "nuevo"
+  const [vista, setVista] = useState("lista") 
   const [planes, setPlanes] = useState([])
   const [form, setForm] = useState({
     eje: "", tema: "", politica_publica: "",
@@ -15,11 +15,11 @@ export default function DashboardEstrategica() {
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-    fetch("http://localhost:3001/api/auth/me", {
+    fetch("https://sistema-planeacion-production.up.railway.app/api/auth/me", {
       headers: { Authorization: `Bearer ${token}` }
     }).then(r => r.json()).then(setUser)
 
-    fetch("http://localhost:3001/api/pmd/lista")
+    fetch("https://sistema-planeacion-production.up.railway.app/api/pmd/lista")
       .then(r => r.json())
       .then(setPlanes)
 
@@ -48,7 +48,7 @@ export default function DashboardEstrategica() {
     }
     setEnviando(true)
     try {
-      const res = await fetch("http://localhost:3001/api/pmd/crear", {
+      const res = await fetch("https://sistema-planeacion-production.up.railway.app/api/pmd/crear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, creado_por: user?.id || null })

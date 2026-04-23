@@ -11,7 +11,7 @@ const MODULOS_POR_ROL = {
   admin:                  ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
   planeacion_estrategica: ["ESTRATEGICA"],
   inversion_publica:      ["INVERSION"],
-  dependencias:           ["SEGUIMIENTO"],
+ // dependencias:           ["SEGUIMIENTO"],
   viewer:                 ["SEGUIMIENTO"],
 }
 
@@ -51,7 +51,9 @@ export default function DashboardRouter() {
   }, []);
 
   if (!user) return <div className="loading">Cargando sistema...</div>;
-
+  if(user.rol === "dependencias"){
+   return <DashboardDependencias/>
+   }
   const modulosPermitidos = MODULOS_POR_ROL[user.rol] || []
 
   return (
