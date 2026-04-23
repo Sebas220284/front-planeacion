@@ -66,7 +66,7 @@ export default function DashboardEstrategica() {
 
   const handleRevisar = async (estado) => {
     if(!modalRevisar) return
-    await fetch(`http://localhost:3001/api/pmd/revisar/${modalRevisar.id}`, {
+    await fetch(`https://sistema-planeacion-production.up.railway.app/api/pmd/revisar/${modalRevisar.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estado, comentario, revisado_por: user?.id || null })

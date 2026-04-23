@@ -13,20 +13,19 @@ export default function DashboardDependencias() {
   const [notificaciones, setNotificaciones] = useState([]);
   const [anioFiltro, setAnioFiltro] = useState(2025);
   const [pdfsHabilitados, setPdfsHabilitados] = useState([]);
-  const [modalPDF, setModalPDF] = useState(null); // guarda { anio, trimestre }
+  const [modalPDF, setModalPDF] = useState(null); 
   const años = [2025, 2026];
 
   const logout = () => { localStorage.removeItem("token"); window.location.href = "/"; };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch("http://localhost:3001/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+    fetch("https://sistema-planeacion-production.up.railway.app/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => {
         setUser(data);
         socket.emit("join_room", data.dependency_id);
-        // Carga PDFs habilitados
-        fetch(`http://localhost:3001/api/pdf/habilitados/${data.dependency_id}`)
+        fetch(`https://sistema-planeacion-production.up.railway.app/api/pdf/habilitados/${data.dependency_id}`)
           .then(r => r.json())
           .then(setPdfsHabilitados)
           .catch(() => {});
@@ -87,7 +86,7 @@ export default function DashboardDependencias() {
   const seleccionarEstrategia = async (e) => {
     setSelectedStrategy(e);
     const lineasIniciales = await Promise.all(e.lineas.map(async (l) => {
-      const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${l.id}`);
+      const res = await fetch(`https://sistema-planeacion-production.up.railway.app/api/trimestres/porLinea/${l.id}`);
       const trimestres = await res.json();
       const get = (anio, trim, tipo) => trimestres.find(t => t.anio === anio && t.trimestre === trim && t.tipo === tipo)?.valor || "";
       const getComentario = (anio, tipo) => trimestres.find(t => t.anio === anio && t.tipo === tipo)?.comentario || "";
@@ -149,7 +148,7 @@ export default function DashboardDependencias() {
           { anio:2026, trimestre:4, tipo:"ejecutado",  valor:l.e4t26, comentario:l.comentario26_exec },
         ];
         for (const r of registros) {
-          await fetch("http://localhost:3001/api/trimestres/guardar", {
+          await fetch("https://sistema-planeacion-production.up.railway.app/api/trimestres/guardar", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ planning_id: l.planning_id, anio: r.anio, trimestre: r.trimestre, tipo: r.tipo, valor: r.valor || 0, comentario: r.comentario || "" })
           });
@@ -168,7 +167,7 @@ export default function DashboardDependencias() {
 
   const enviarRevision = async () => {
     if (!nuevaLinea.trim()) return;
-    const res = await fetch("http://localhost:3001/api/lineas/nueva", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estrategia_id: selectedStrategy.id, lineas_accion: nuevaLinea }) });
+    const res = await fetch("https://sistema-planeacion-production.up.railway.app/api/lineas/nueva", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estrategia_id: selectedStrategy.id, lineas_accion: nuevaLinea }) });
     const data = await res.json();
     setLineas([...lineas, data]);
     setNuevaLinea(""); setModalLinea(false);

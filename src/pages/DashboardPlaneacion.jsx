@@ -25,7 +25,7 @@ export default function DashboardPlaneacion() {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción? Se borrarán permanentemente todos sus datos.");
     if (!confirmar) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
+      const res = await fetch(`https://sistema-planeacion-production.up.railway.app/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
       if (res.ok) {
         setDependencias((prev) =>
           prev.map((dep) => {
@@ -51,7 +51,7 @@ export default function DashboardPlaneacion() {
 
   const habilitarPDF = async () => {
     if (!dependencia) return;
-    await fetch("http://localhost:3001/api/pdf/habilitar", {
+    await fetch("https://sistema-planeacion-production.up.railway.app/api/pdf/habilitar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -70,7 +70,7 @@ export default function DashboardPlaneacion() {
 
     const fetchData = async () => {
       try {
-        const resDep = await fetch("http://localhost:3001/api/planeacion/dashboard");
+        const resDep = await fetch("https://sistema-planeacion-production.up.railway.app/api/planeacion/dashboard");
         const data = await resDep.json();
         setDependencias(data);
         if (data.length > 0) setActiva(data[0].id);
@@ -80,14 +80,14 @@ export default function DashboardPlaneacion() {
           const estrategias = dep.estrategias ? Object.values(dep.estrategias) : [];
           for (const est of estrategias) {
             for (const linea of est.lineas) {
-              const resT = await fetch(`http://localhost:3001/api/trimestres/porLinea/${linea.id}`);
+              const resT = await fetch(`https://sistema-planeacion-production.up.railway.app/api/trimestres/porLinea/${linea.id}`);
               allTrimestres[linea.id] = await resT.json();
             }
           }
         }
         setTrimestres(allTrimestres);
 
-        const resPend = await fetch("http://localhost:3001/api/lineas/pendientes");
+        const resPend = await fetch("https://sistema-planeacion-production.up.railway.app/api/lineas/pendientes");
         const dataPend = await resPend.json();
         setLineasPendientes(dataPend);
       } catch (error) {
@@ -99,7 +99,7 @@ export default function DashboardPlaneacion() {
 
     socket.on("nueva_linea_pendiente", (data) => setLineasPendientes((prev) => [data, ...prev]));
     socket.on("trimestre_actualizado", async (data) => {
-      const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${data.planning_id}`);
+      const res = await fetch(`https://sistema-planeacion-production.up.railway.app/api/trimestres/porLinea/${data.planning_id}`);
       const t = await res.json();
       setTrimestres((prev) => ({ ...prev, [data.planning_id]: t }));
     });
@@ -149,7 +149,7 @@ export default function DashboardPlaneacion() {
     const lista = trimestres[planning_id] || [];
     const registros = lista.filter((t) => t.anio === anio && t.tipo === tipo);
     for (const t of registros) {
-      await fetch(`http://localhost:3001/api/review/${t.id}`, {
+      await fetch(`https://sistema-planeacion-production.up.railway.app/api/review/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado, comentario: "", user_id: null, dependency_id }),
@@ -220,7 +220,7 @@ export default function DashboardPlaneacion() {
                     <div style={{ display: "flex", gap: "4px" }}>
                       <button
                         onClick={async () => {
-                          await fetch(`http://localhost:3001/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) });
+                          await fetch(`https://sistema-planeacion-production.up.railway.app/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) });
                           setLineasPendientes(prev => prev.filter(x => x.id !== l.id));
                         }}
                         style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}
@@ -394,7 +394,7 @@ export default function DashboardPlaneacion() {
               <button onClick={() => { setModalRechazar(null); setComentarioRechazo(""); }} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer" }}>Cancelar</button>
               <button
                 onClick={async () => {
-                  await fetch(`http://localhost:3001/api/lineas/rechazar/${modalRechazar.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comentario: comentarioRechazo, user_id: null }) });
+                  await fetch(`https://sistema-planeacion-production.up.railway.app/api/lineas/rechazar/${modalRechazar.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comentario: comentarioRechazo, user_id: null }) });
                   setLineasPendientes(prev => prev.filter(x => x.id !== modalRechazar.id));
                   setModalRechazar(null);
                   setComentarioRechazo("");
