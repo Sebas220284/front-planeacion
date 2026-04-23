@@ -1,4 +1,4 @@
-const API = "http://localhost:3000/api"
+const API = "https://sistema-planeacion-production.up.railway.app/api"
 
 export async function login(email,password){
 
