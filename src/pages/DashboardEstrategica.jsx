@@ -245,13 +245,13 @@ export default function DashboardEstrategica() {
                 onClick={() => handleRevisar("rechazado")}
                 style={{ padding:"8px 16px", borderRadius:"6px", background:"#dc2626", color:"white", border:"none", cursor:"pointer", fontWeight:"600" }}
               >
-                ❌ Rechazar
+                ❌Rechazar
               </button>
               <button
                 onClick={() => handleRevisar("aprobado")}
                 style={{ padding:"8px 16px", borderRadius:"6px", background:"#16a34a", color:"white", border:"none", cursor:"pointer", fontWeight:"600" }}
               >
-                ✅ Aprobar
+                ✅Aprobar
               </button>
             </div>
           </div>
