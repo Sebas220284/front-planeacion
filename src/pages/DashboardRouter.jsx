@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardPlaneacion from "./DashboardPlaneacion";
 import DashboardDependencias from "./DashboardDependencias";
+import DashboardEstrategica from "./DashboardEstrategica"
 import DashboardAdmin from "./DashboardAdmin";
 import "../styles/selectorModulos.css";
 
@@ -103,12 +104,9 @@ export default function DashboardRouter() {
               : <DashboardPlaneacion />
           )}
 
-          {moduloSeleccionado === "ESTRATEGICA" && (
-            <div className="placeholder">
-              <h2>🎯 Planeación Estratégica</h2>
-              <p>Módulo en desarrollo</p>
-            </div>
-          )}
+        
+            {moduloSeleccionado === "ESTRATEGICA" && <DashboardEstrategica />}
+          
 
           {moduloSeleccionado === "INVERSION" && (
             <div className="placeholder">
