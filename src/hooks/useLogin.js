@@ -19,7 +19,7 @@ export function useLogin() {
     const onSubmit = async(data)=>{
         setError("")
         try{
-            const res = await axios.post("https://sistema-planeacion-production.up.railway.app/api/auth/login",data)
+            const res = await axios.post("http://localhost:3001/api/auth/login",data)
             localStorage.setItem("token",res.data.token)
             window.location.href="/dashboard"
         } catch(err){

@@ -11,7 +11,7 @@ const MODULOS_POR_ROL = {
   admin:                  ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
   planeacion_estrategica: ["ESTRATEGICA"],
   inversion_publica:      ["INVERSION"],
- // dependencias:           ["SEGUIMIENTO"],
+  dependencias:           ["SEGUIMIENTO"],
   viewer:                 ["SEGUIMIENTO"],
 }
 
@@ -40,7 +40,7 @@ export default function DashboardRouter() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    fetch("https://sistema-planeacion-production.up.railway.app/api/auth/me", {
+    fetch("http://localhost:3001/api/auth/me", {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -51,9 +51,9 @@ export default function DashboardRouter() {
   }, []);
 
   if (!user) return <div className="loading">Cargando sistema...</div>;
-  if(user.rol === "dependencias"){
-   return <DashboardDependencias/>
-   }
+if(user.rol === "dependencias"){
+return <DashboardDependencias/>
+}
   const modulosPermitidos = MODULOS_POR_ROL[user.rol] || []
 
   return (

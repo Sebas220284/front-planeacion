@@ -15,11 +15,11 @@ export default function DashboardEstrategica() {
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-    fetch("https://sistema-planeacion-production.up.railway.app/api/auth/me", {
+    fetch("http://localhost:3001/api/auth/me", {
       headers: { Authorization: `Bearer ${token}` }
     }).then(r => r.json()).then(setUser)
 
-    fetch("https://sistema-planeacion-production.up.railway.app/api/pmd/lista")
+    fetch("http://localhost:3001/api/pmd/lista")
       .then(r => r.json())
       .then(setPlanes)
 
@@ -48,7 +48,7 @@ export default function DashboardEstrategica() {
     }
     setEnviando(true)
     try {
-      const res = await fetch("https://sistema-planeacion-production.up.railway.app/api/pmd/crear", {
+      const res = await fetch("http://localhost:3001/api/pmd/crear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, creado_por: user?.id || null })
@@ -66,7 +66,7 @@ export default function DashboardEstrategica() {
 
   const handleRevisar = async (estado) => {
     if(!modalRevisar) return
-    await fetch(`https://sistema-planeacion-production.up.railway.app/api/pmd/revisar/${modalRevisar.id}`, {
+    await fetch(`http://localhost:3001/api/pmd/revisar/${modalRevisar.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ estado, comentario, revisado_por: user?.id || null })

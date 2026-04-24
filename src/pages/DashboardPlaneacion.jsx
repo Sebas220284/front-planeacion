@@ -18,6 +18,9 @@ export default function DashboardPlaneacion() {
   const [anioFiltro, setAnioFiltro] = useState(2025);
   const [modalHabilitarPDF, setModalHabilitarPDF] = useState(null);
   const [filtroHabilitar, setFiltroHabilitar] = useState({ anio: 2025, trimestre: null });
+  const [vistaAlineacion, setVistaAlineacion] = useState(false);
+  const [estrategiasPMD, setEstrategiasPMD] = useState([]);
+  const [filtroEje, setFiltroEje] = useState(null);
   const navigate = useNavigate();
   const años = [2025, 2026];
 
@@ -25,7 +28,7 @@ export default function DashboardPlaneacion() {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción? Se borrarán permanentemente todos sus datos.");
     if (!confirmar) return;
     try {
-      const res = await fetch(`https://sistema-planeacion-production.up.railway.app/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
+      const res = await fetch(`http://localhost:3001/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
       if (res.ok) {
         setDependencias((prev) =>
           prev.map((dep) => {
@@ -49,9 +52,21 @@ export default function DashboardPlaneacion() {
     }
   };
 
+  const cargarAlineacion = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/pmd/aprobados");
+      const data = await res.json();
+      setEstrategiasPMD(data);
+      setVistaAlineacion(true);
+      setFiltroEje(null);
+    } catch(e) {
+      alert("Error cargando alineación");
+    }
+  };
+
   const habilitarPDF = async () => {
     if (!dependencia) return;
-    await fetch("https://sistema-planeacion-production.up.railway.app/api/pdf/habilitar", {
+    await fetch("http://localhost:3001/api/pdf/habilitar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -70,7 +85,7 @@ export default function DashboardPlaneacion() {
 
     const fetchData = async () => {
       try {
-        const resDep = await fetch("https://sistema-planeacion-production.up.railway.app/api/planeacion/dashboard");
+        const resDep = await fetch("http://localhost:3001/api/planeacion/dashboard");
         const data = await resDep.json();
         setDependencias(data);
         if (data.length > 0) setActiva(data[0].id);
@@ -80,14 +95,14 @@ export default function DashboardPlaneacion() {
           const estrategias = dep.estrategias ? Object.values(dep.estrategias) : [];
           for (const est of estrategias) {
             for (const linea of est.lineas) {
-              const resT = await fetch(`https://sistema-planeacion-production.up.railway.app/api/trimestres/porLinea/${linea.id}`);
+              const resT = await fetch(`http://localhost:3001/api/trimestres/porLinea/${linea.id}`);
               allTrimestres[linea.id] = await resT.json();
             }
           }
         }
         setTrimestres(allTrimestres);
 
-        const resPend = await fetch("https://sistema-planeacion-production.up.railway.app/api/lineas/pendientes");
+        const resPend = await fetch("http://localhost:3001/api/lineas/pendientes");
         const dataPend = await resPend.json();
         setLineasPendientes(dataPend);
       } catch (error) {
@@ -99,7 +114,7 @@ export default function DashboardPlaneacion() {
 
     socket.on("nueva_linea_pendiente", (data) => setLineasPendientes((prev) => [data, ...prev]));
     socket.on("trimestre_actualizado", async (data) => {
-      const res = await fetch(`https://sistema-planeacion-production.up.railway.app/api/trimestres/porLinea/${data.planning_id}`);
+      const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${data.planning_id}`);
       const t = await res.json();
       setTrimestres((prev) => ({ ...prev, [data.planning_id]: t }));
     });
@@ -149,7 +164,7 @@ export default function DashboardPlaneacion() {
     const lista = trimestres[planning_id] || [];
     const registros = lista.filter((t) => t.anio === anio && t.tipo === tipo);
     for (const t of registros) {
-      await fetch(`https://sistema-planeacion-production.up.railway.app/api/review/${t.id}`, {
+      await fetch(`http://localhost:3001/api/review/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado, comentario: "", user_id: null, dependency_id }),
@@ -179,6 +194,124 @@ export default function DashboardPlaneacion() {
 
   const dependencia = dependencias.find((d) => d.id === activa);
 
+  const renderAlineacion = () => {
+    const ejesUnicos = [...new Set(estrategiasPMD.map(e => e.eje))];
+    const filtradas = filtroEje ? estrategiasPMD.filter(e => e.eje === filtroEje) : estrategiasPMD;
+
+    const porEje = filtradas.reduce((acc, e) => {
+      if (!acc[e.eje]) acc[e.eje] = {};
+      if (!acc[e.eje][e.tema]) acc[e.eje][e.tema] = {};
+      if (!acc[e.eje][e.tema][e.politica_publica]) acc[e.eje][e.tema][e.politica_publica] = {};
+      if (!acc[e.eje][e.tema][e.politica_publica][e.objetivo]) acc[e.eje][e.tema][e.politica_publica][e.objetivo] = [];
+      if (!acc[e.eje][e.tema][e.politica_publica][e.objetivo].includes(e.estrategia)) {
+        acc[e.eje][e.tema][e.politica_publica][e.objetivo].push(e.estrategia);
+      }
+      return acc;
+    }, {});
+
+    return (
+      <div>
+        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"20px", flexWrap:"wrap" }}>
+          <h2 style={{ margin:0, color:"#1e293b" }}>🗂️ Alineación Estratégica</h2>
+          <button
+            onClick={() => setVistaAlineacion(false)}
+            style={{ background:"#e5e7eb", border:"none", borderRadius:"6px", padding:"6px 14px", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}
+          >
+            ← Volver al dashboard
+          </button>
+          <span style={{ fontSize:"12px", color:"#6b7280" }}>
+            {filtradas.length} estrategia{filtradas.length !== 1 ? "s" : ""} {filtroEje ? "en este eje" : "en total"}
+          </span>
+        </div>
+
+        <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"24px" }}>
+          <button
+            onClick={() => setFiltroEje(null)}
+            style={{
+              padding:"6px 16px", borderRadius:"999px", border:"2px solid",
+              borderColor: filtroEje===null ? "#2563eb" : "#e5e7eb",
+              background: filtroEje===null ? "#2563eb" : "white",
+              color: filtroEje===null ? "white" : "#374151",
+              cursor:"pointer", fontSize:"12px", fontWeight:"600", transition:"all 0.15s"
+            }}
+          >
+            Todos los ejes ({estrategiasPMD.length})
+          </button>
+          {ejesUnicos.map(eje => {
+            const count = estrategiasPMD.filter(e => e.eje === eje).length;
+            return (
+              <button
+                key={eje}
+                onClick={() => setFiltroEje(eje)}
+                title={eje}
+                style={{
+                  padding:"6px 16px", borderRadius:"999px", border:"2px solid",
+                  borderColor: filtroEje===eje ? "#2563eb" : "#e5e7eb",
+                  background: filtroEje===eje ? "#2563eb" : "white",
+                  color: filtroEje===eje ? "white" : "#374151",
+                  cursor:"pointer", fontSize:"12px", fontWeight:"600",
+                  maxWidth:"260px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  transition:"all 0.15s"
+                }}
+              >
+                {eje.length > 35 ? eje.substring(0,35)+"..." : eje} ({count})
+              </button>
+            );
+          })}
+        </div>
+
+        {filtradas.length === 0 && (
+          <div style={{ textAlign:"center", padding:"60px", color:"#6b7280" }}>
+            <p style={{ fontSize:"48px", marginBottom:"12px" }}>🗂️</p>
+            <p>No hay estrategias aprobadas {filtroEje ? "para este eje" : "aún"}.</p>
+          </div>
+        )}
+
+        {Object.entries(porEje).map(([eje, temas]) => (
+          <div key={eje} style={{ marginBottom:"24px", background:"white", borderRadius:"12px", overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", border:"1px solid #e5e7eb" }}>
+
+            <div style={{ background:"#dc2626", padding:"14px 20px" }}>
+              <p style={{ color:"white", fontWeight:"700", fontSize:"14px", margin:0 }}>EJE {eje}</p>
+            </div>
+
+            {Object.entries(temas).map(([tema, politicas]) => (
+              <div key={tema}>
+                <div style={{ background:"#fef2f2", padding:"10px 20px 10px 32px", borderBottom:"1px solid #fecaca" }}>
+                  <p style={{ color:"#991b1b", fontWeight:"600", fontSize:"13px", margin:0 }}>TEMA {tema}</p>
+                </div>
+
+                {Object.entries(politicas).map(([politica, objetivos]) => (
+                  <div key={politica}>
+                    <div style={{ background:"#fff7ed", padding:"8px 20px 8px 48px", borderBottom:"1px solid #fed7aa" }}>
+                      <p style={{ color:"#9a3412", fontSize:"12px", fontWeight:"600", margin:0 }}>POLITICA PUBLICA {politica}</p>
+                    </div>
+
+                    {Object.entries(objetivos).map(([objetivo, estrategias]) => (
+                      <div key={objetivo}>
+                        <div style={{ background:"#f0fdf4", padding:"8px 20px 8px 64px", borderBottom:"1px solid #bbf7d0" }}>
+                          <p style={{ color:"#166534", fontSize:"12px", fontWeight:"600", margin:0 }}>OBJETIVO {objetivo}</p>
+                        </div>
+
+                        {estrategias.map((est, idx) => (
+                          <div key={idx} style={{ padding:"8px 20px 8px 80px", borderBottom:"1px solid #f1f5f9", background: idx % 2 === 0 ? "#fafafa" : "white" }}>
+                            <p style={{ color:"#1e40af", fontSize:"12px", margin:0 }}>
+                              <span style={{ color:"#93c5fd", marginRight:"6px" }}>ESTRATEGIA</span>
+                              {est}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="layout">
       <div className="sidebar">
@@ -189,11 +322,18 @@ export default function DashboardPlaneacion() {
         </button>
         <div className={`submenu ${openDependencias ? "open" : ""}`}>
           {dependencias.map((dep) => (
-            <button key={dep.id} className={`dep-item ${dep.id === activa ? "active" : ""}`} onClick={() => setActiva(dep.id)}>
+            <button key={dep.id} className={`dep-item ${dep.id === activa ? "active" : ""}`} onClick={() => { setActiva(dep.id); setVistaAlineacion(false); }}>
               {dep.name}
             </button>
           ))}
         </div>
+
+        <button
+          onClick={cargarAlineacion}
+          style={{ marginTop:"12px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color:"white", border:"none", borderRadius:"8px", padding:"8px 14px", cursor:"pointer", fontSize:"13px", fontWeight:"600", width:"100%", transition:"all 0.15s" }}
+        >
+          🗂️ Alineación Estratégica
+        </button>
 
         <div style={{ marginTop: "16px" }}>
           <button className="menu-btn" onClick={() => setShowLineasPendientes(!showLineasPendientes)} style={{ position: "relative", width: "100%" }}>
@@ -220,7 +360,7 @@ export default function DashboardPlaneacion() {
                     <div style={{ display: "flex", gap: "4px" }}>
                       <button
                         onClick={async () => {
-                          await fetch(`https://sistema-planeacion-production.up.railway.app/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) });
+                          await fetch(`http://localhost:3001/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) });
                           setLineasPendientes(prev => prev.filter(x => x.id !== l.id));
                         }}
                         style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}
@@ -240,94 +380,99 @@ export default function DashboardPlaneacion() {
       </div>
 
       <div className="contenido">
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-          <h2 className="titulo" style={{ margin: 0 }}>
-            {dependencia ? dependencia.name : "Selecciona una dependencia"}
-          </h2>
-          <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
-            {años.map(a => (
-              <button key={a} onClick={() => setAnioFiltro(a)} style={{ padding: "6px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", background: anioFiltro === a ? "#2563eb" : "transparent", color: anioFiltro === a ? "white" : "#6b7280", transition: "all 0.15s" }}>
-                {a}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {dependencia && Object.values(dependencia.estrategias || {}).map((est) => (
-          <div key={est.id} className="card">
-            <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-              <h3 style={{ margin: 0 }}>{est.name}</h3>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span className="badge">{est.lineas.length} líneas</span>
-                <button
-                  onClick={() => { setModalHabilitarPDF(est.id); setFiltroHabilitar({ anio: anioFiltro, trimestre: null }); }}
-                  style={{ background: "#2563eb", color: "white", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                >
-                  📄 Habilitar PDF
-                </button>
+        {vistaAlineacion ? renderAlineacion() : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+              <h2 className="titulo" style={{ margin: 0 }}>
+                {dependencia ? dependencia.name : "Selecciona una dependencia"}
+              </h2>
+              <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
+                {años.map(a => (
+                  <button key={a} onClick={() => setAnioFiltro(a)} style={{ padding: "6px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", background: anioFiltro === a ? "#2563eb" : "transparent", color: anioFiltro === a ? "white" : "#6b7280", transition: "all 0.15s" }}>
+                    {a}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="tabla-wrapper">
-              <table className="tabla-poa">
-                <thead>
-                  <tr>
-                    <th rowSpan="2">Acción</th>
-                    <th rowSpan="2">#</th>
-                    <th rowSpan="2">Línea de acción</th>
-                    <th colSpan="7">Programado {anioFiltro}</th>
-                    <th colSpan="7">Ejecutado {anioFiltro}</th>
-                  </tr>
-                  <tr>
-                    <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {est.lineas.map((linea, i) => (
-                    <tr key={`${est.id}-${i}-${linea.id}`}>
-                      <td style={{ textAlign: "center" }}>
-                        <button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>🗑️</button>
-                      </td>
-                      <td>{i + 1}</td>
-                      <td style={{ minWidth: "200px" }}>{linea.lineas_accion}</td>
-                      {[
-                        { anio: anioFiltro, tipo: "programado" },
-                        { anio: anioFiltro, tipo: "ejecutado" },
-                      ].map(({ anio, tipo }) => (
-                        <React.Fragment key={`${est.id}-${linea.id}-${i}-${anio}-${tipo}`}>
-                          <td>{getValor(linea.id, anio, 1, tipo)}</td>
-                          <td>{getValor(linea.id, anio, 2, tipo)}</td>
-                          <td>{getValor(linea.id, anio, 3, tipo)}</td>
-                          <td>{getValor(linea.id, anio, 4, tipo)}</td>
-                          <td><b>{sumar(linea.id, anio, tipo)}</b></td>
-                          <td style={{ fontSize: "10px" }}>{getComentario(linea.id, anio, tipo)}</td>
-                          <td style={{ minWidth: "140px" }}>
-                            <div style={{ fontSize: "9px", color: "#6b7280", marginBottom: "2px" }}>📅 {getFechaEnvio(linea.id, anio, tipo)}</div>
-                            <EstadoBadge estado={getEstadoRevision(linea.id, anio, tipo)} />
-                            <div style={{ display: "flex", gap: "2px", marginTop: "4px" }}>
-                              <button onClick={() => revisarTrimestre(linea.id, anio, tipo, "aprobado", dependencia.id)} style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "2px 4px", fontSize: "10px", cursor: "pointer" }}>✅ Aprobar</button>
-                              <button onClick={() => revisarTrimestre(linea.id, anio, tipo, "rechazado", dependencia.id)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "2px 4px", fontSize: "10px", cursor: "pointer" }}>❌ Rechazar</button>
-                            </div>
-                          </td>
-                        </React.Fragment>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
+            {dependencia && Object.values(dependencia.estrategias || {}).map((est) => (
+              <div key={est.id} className="card">
+                <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                  <h3 style={{ margin: 0 }}>{est.name}</h3>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="badge">{est.lineas.length} líneas</span>
+                    <button
+                      onClick={() => { setModalHabilitarPDF(est.id); setFiltroHabilitar({ anio: anioFiltro, trimestre: null }); }}
+                      style={{ background: "#2563eb", color: "white", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+                    >
+                      📄 Habilitar PDF
+                    </button>
+                  </div>
+                </div>
 
-        {dependencia && (
-          <div style={{ marginTop: "24px", marginBottom: "24px", display: "flex", justifyContent: "flex-end" }}>
-            <button
-              onClick={() => setModalPDF(true)}
-              style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "8px", padding: "10px 24px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
-            >
-              📄 Exportar PDF
-            </button>
-          </div>
+                <div className="tabla-wrapper">
+                  <table className="tabla-poa">
+                    <thead>
+                      <tr>
+                        <th rowSpan="2">Acción</th>
+                        <th rowSpan="2">#</th>
+                        <th rowSpan="2">Línea de acción</th>
+                        <th colSpan="7">Programado {anioFiltro}</th>
+                        <th colSpan="7">Ejecutado {anioFiltro}</th>
+                      </tr>
+                      <tr>
+                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {est.lineas.map((linea, i) => (
+                        <tr key={`${est.id}-${i}-${linea.id}`}>
+                          <td style={{ textAlign: "center" }}>
+                            <button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>🗑️</button>
+                          </td>
+                          <td>{i + 1}</td>
+                          <td style={{ minWidth: "200px" }}>{linea.lineas_accion}</td>
+                          {[
+                            { anio: anioFiltro, tipo: "programado" },
+                            { anio: anioFiltro, tipo: "ejecutado" },
+                          ].map(({ anio, tipo }) => (
+                            <React.Fragment key={`${est.id}-${linea.id}-${i}-${anio}-${tipo}`}>
+                              <td>{getValor(linea.id, anio, 1, tipo)}</td>
+                              <td>{getValor(linea.id, anio, 2, tipo)}</td>
+                              <td>{getValor(linea.id, anio, 3, tipo)}</td>
+                              <td>{getValor(linea.id, anio, 4, tipo)}</td>
+                              <td><b>{sumar(linea.id, anio, tipo)}</b></td>
+                              <td style={{ fontSize: "10px" }}>{getComentario(linea.id, anio, tipo)}</td>
+                              <td style={{ minWidth: "140px" }}>
+                                <div style={{ fontSize: "9px", color: "#6b7280", marginBottom: "2px" }}>📅 {getFechaEnvio(linea.id, anio, tipo)}</div>
+                                <EstadoBadge estado={getEstadoRevision(linea.id, anio, tipo)} />
+                                <div style={{ display: "flex", gap: "2px", marginTop: "4px" }}>
+                                  <button onClick={() => revisarTrimestre(linea.id, anio, tipo, "aprobado", dependencia.id)} style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "2px 4px", fontSize: "10px", cursor: "pointer" }}>✅ Aprobar</button>
+                                  <button onClick={() => revisarTrimestre(linea.id, anio, tipo, "rechazado", dependencia.id)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "2px 4px", fontSize: "10px", cursor: "pointer" }}>❌ Rechazar</button>
+                                </div>
+                              </td>
+                            </React.Fragment>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+
+            {dependencia && (
+              <div style={{ marginTop: "24px", marginBottom: "24px", display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setModalPDF(true)}
+                  style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "8px", padding: "10px 24px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
+                >
+                  📄 Exportar PDF
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -394,7 +539,7 @@ export default function DashboardPlaneacion() {
               <button onClick={() => { setModalRechazar(null); setComentarioRechazo(""); }} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer" }}>Cancelar</button>
               <button
                 onClick={async () => {
-                  await fetch(`https://sistema-planeacion-production.up.railway.app/api/lineas/rechazar/${modalRechazar.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comentario: comentarioRechazo, user_id: null }) });
+                  await fetch(`http://localhost:3001/api/lineas/rechazar/${modalRechazar.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comentario: comentarioRechazo, user_id: null }) });
                   setLineasPendientes(prev => prev.filter(x => x.id !== modalRechazar.id));
                   setModalRechazar(null);
                   setComentarioRechazo("");
