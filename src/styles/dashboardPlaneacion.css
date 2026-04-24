@@ -147,41 +147,86 @@ font-size:12px;
 }
 
 
-.tabla-wrapper{
-width:100%;
-overflow-x:auto;
-overflow-y:hidden;
-border-radius:8px;
+/* Contenedor principal de la tabla */
+.tabla-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  margin-top: 15px;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.tabla-poa{
-border-collapse:collapse;
-width:1500px; 
+.tabla-poa {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  min-width: 1200px; /* Asegura que no se encime en pantallas chicas */
 }
 
-.tabla-poa thead{
-background:#1e293b;
-color:white;
+/* Encabezados */
+.tabla-poa thead th {
+  background-color: #f8fafc;
+  color: #475569;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 12px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0;
+  text-align: center;
 }
 
-.tabla-poa th{
-padding:10px;
-font-size:13px;
-text-align:left;
-white-space:nowrap;
+/* Colores de secciones para separar visualmente Programado de Ejecutado */
+.header-section-prog {
+  background-color: #eff6ff !important; /* Azul tenue */
+  color: #1e40af !important;
+  border-bottom: 3px solid #3b82f6 !important;
 }
 
-.tabla-poa td{
-padding:10px;
-border-bottom:1px solid #eee;
-font-size:13px;
-white-space:nowrap;
+.header-section-ejec {
+  background-color: #ecfdf5 !important; /* Verde tenue */
+  color: #065f46 !important;
+  border-bottom: 3px solid #10b981 !important;
 }
 
-.tabla-poa tr:hover{
-background:#f1f5f9;
+/* Celdas */
+.tabla-poa tbody td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  border-right: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
 }
 
+/* Estilo para los Totales */
+.col-total {
+  background-color: #f8fafc;
+  font-weight: 800;
+  color: #1e293b;
+  border-left: 2px solid #e2e8f0;
+}
+
+/* Efecto hover */
+.tabla-poa tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Botones pequeños de acción en tabla */
+.btn-tabla {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-aprobar { background: #16a34a; color: white; }
+.btn-aprobar:hover { background: #15803d; }
+.btn-rechazar { background: #dc2626; color: white; }
+.btn-rechazar:hover { background: #b91c1c; }
 
 .estado{
 padding:4px 8px;
@@ -204,4 +249,78 @@ color:white;
 .estado.rechazado{
 background:#dc2626;
 color:white;
+}
+/* Contenedor de Filtros de Eje */
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.filter-pill {
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid #e2e8f0;
+  background: white;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-pill:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.filter-pill.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* Niveles de Jerarquía */
+.nivel-tema {
+  margin-left: 20px;
+  border-left: 3px solid #fecaca; /* Rojo suave */
+  padding-left: 15px;
+  margin-top: 10px;
+}
+
+.nivel-politica {
+  margin-left: 20px;
+  border-left: 3px solid #fed7aa; /* Naranja suave */
+  padding-left: 15px;
+  margin-top: 8px;
+}
+
+.nivel-objetivo {
+  margin-left: 20px;
+  border-left: 3px solid #bbf7d0; /* Verde suave */
+  padding-left: 15px;
+  margin-top: 8px;
+}
+
+.estrategia-item {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  padding: 10px 15px;
+  border-radius: 8px;
+  margin-top: 5px;
+  color: #1e40af;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
 }

@@ -24,6 +24,8 @@ export default function DashboardPlaneacion() {
   const navigate = useNavigate();
   const años = [2025, 2026];
 
+  const dependencia = dependencias.find((d) => d.id === activa);
+
   const eliminarLineaDeAccion = async (lineaId) => {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción? Se borrarán permanentemente todos sus datos.");
     if (!confirmar) return;
@@ -43,12 +45,9 @@ export default function DashboardPlaneacion() {
           })
         );
         alert("✅ Línea eliminada correctamente.");
-      } else {
-        alert("❌ Error al eliminar la línea.");
       }
     } catch (error) {
       console.error("Error:", error);
-      alert("Hubo un fallo en la conexión.");
     }
   };
 
@@ -59,7 +58,7 @@ export default function DashboardPlaneacion() {
       setEstrategiasPMD(data);
       setVistaAlineacion(true);
       setFiltroEje(null);
-    } catch(e) {
+    } catch (e) {
       alert("Error cargando alineación");
     }
   };
@@ -82,7 +81,6 @@ export default function DashboardPlaneacion() {
 
   useEffect(() => {
     socket.emit("join_planeacion");
-
     const fetchData = async () => {
       try {
         const resDep = await fetch("http://localhost:3001/api/planeacion/dashboard");
@@ -109,7 +107,6 @@ export default function DashboardPlaneacion() {
         console.error("Error cargando datos:", error);
       }
     };
-
     fetchData();
 
     socket.on("nueva_linea_pendiente", (data) => setLineasPendientes((prev) => [data, ...prev]));
@@ -153,11 +150,7 @@ export default function DashboardPlaneacion() {
   const getFechaEnvio = (planning_id, anio, tipo) => {
     const lista = trimestres[planning_id] || [];
     const t = lista.find((x) => x.anio === anio && x.tipo === tipo);
-    if (!t?.fecha_envio) return "-";
-    return new Date(t.fecha_envio).toLocaleString("es-MX", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
+    return t?.fecha_envio ? new Date(t.fecha_envio).toLocaleString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-";
   };
 
   const revisarTrimestre = async (planning_id, anio, tipo, estado, dependency_id) => {
@@ -170,136 +163,74 @@ export default function DashboardPlaneacion() {
         body: JSON.stringify({ estado, comentario: "", user_id: null, dependency_id }),
       });
     }
-    setTrimestres((prev) => {
-      const nuevaLista = (prev[planning_id] || []).map((t) =>
-        t.anio === anio && t.tipo === tipo ? { ...t, estado_revision: estado } : t
-      );
-      return { ...prev, [planning_id]: nuevaLista };
-    });
+    setTrimestres((prev) => ({
+      ...prev,
+      [planning_id]: (prev[planning_id] || []).map((t) => t.anio === anio && t.tipo === tipo ? { ...t, estado_revision: estado } : t)
+    }));
   };
 
   const EstadoBadge = ({ estado }) => {
-    const colores = {
-      aprobado: { bg: "#d1fae5", color: "#065f46" },
-      rechazado: { bg: "#fee2e2", color: "#991b1b" },
-      pendiente: { bg: "#fef9c3", color: "#854d0e" },
-    };
+    const colores = { aprobado: { bg: "#d1fae5", color: "#065f46" }, rechazado: { bg: "#fee2e2", color: "#991b1b" }, pendiente: { bg: "#fef9c3", color: "#854d0e" } };
     const c = colores[estado] || colores.pendiente;
-    return (
-      <span style={{ background: c.bg, color: c.color, padding: "2px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: "600" }}>
-        {estado}
-      </span>
-    );
+    return <span style={{ background: c.bg, color: c.color, padding: "2px 8px", borderRadius: "999px", fontSize: "11px", fontWeight: "600" }}>{estado}</span>;
   };
-
-  const dependencia = dependencias.find((d) => d.id === activa);
 
   const renderAlineacion = () => {
     const ejesUnicos = [...new Set(estrategiasPMD.map(e => e.eje))];
     const filtradas = filtroEje ? estrategiasPMD.filter(e => e.eje === filtroEje) : estrategiasPMD;
-
     const porEje = filtradas.reduce((acc, e) => {
       if (!acc[e.eje]) acc[e.eje] = {};
       if (!acc[e.eje][e.tema]) acc[e.eje][e.tema] = {};
       if (!acc[e.eje][e.tema][e.politica_publica]) acc[e.eje][e.tema][e.politica_publica] = {};
       if (!acc[e.eje][e.tema][e.politica_publica][e.objetivo]) acc[e.eje][e.tema][e.politica_publica][e.objetivo] = [];
-      if (!acc[e.eje][e.tema][e.politica_publica][e.objetivo].includes(e.estrategia)) {
-        acc[e.eje][e.tema][e.politica_publica][e.objetivo].push(e.estrategia);
-      }
+      if (!acc[e.eje][e.tema][e.politica_publica][e.objetivo].includes(e.estrategia)) acc[e.eje][e.tema][e.politica_publica][e.objetivo].push(e.estrategia);
       return acc;
     }, {});
 
     return (
-      <div>
-        <div style={{ display:"flex", alignItems:"center", gap:"12px", marginBottom:"20px", flexWrap:"wrap" }}>
-          <h2 style={{ margin:0, color:"#1e293b" }}>🗂️ Alineación Estratégica</h2>
-          <button
-            onClick={() => setVistaAlineacion(false)}
-            style={{ background:"#e5e7eb", border:"none", borderRadius:"6px", padding:"6px 14px", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}
-          >
-            ← Volver al dashboard
-          </button>
-          <span style={{ fontSize:"12px", color:"#6b7280" }}>
-            {filtradas.length} estrategia{filtradas.length !== 1 ? "s" : ""} {filtroEje ? "en este eje" : "en total"}
-          </span>
-        </div>
-
-        <div style={{ display:"flex", flexWrap:"wrap", gap:"8px", marginBottom:"24px" }}>
-          <button
-            onClick={() => setFiltroEje(null)}
-            style={{
-              padding:"6px 16px", borderRadius:"999px", border:"2px solid",
-              borderColor: filtroEje===null ? "#2563eb" : "#e5e7eb",
-              background: filtroEje===null ? "#2563eb" : "white",
-              color: filtroEje===null ? "white" : "#374151",
-              cursor:"pointer", fontSize:"12px", fontWeight:"600", transition:"all 0.15s"
-            }}
-          >
-            Todos los ejes ({estrategiasPMD.length})
-          </button>
-          {ejesUnicos.map(eje => {
-            const count = estrategiasPMD.filter(e => e.eje === eje).length;
-            return (
-              <button
-                key={eje}
-                onClick={() => setFiltroEje(eje)}
-                title={eje}
-                style={{
-                  padding:"6px 16px", borderRadius:"999px", border:"2px solid",
-                  borderColor: filtroEje===eje ? "#2563eb" : "#e5e7eb",
-                  background: filtroEje===eje ? "#2563eb" : "white",
-                  color: filtroEje===eje ? "white" : "#374151",
-                  cursor:"pointer", fontSize:"12px", fontWeight:"600",
-                  maxWidth:"260px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
-                  transition:"all 0.15s"
-                }}
-              >
-                {eje.length > 35 ? eje.substring(0,35)+"..." : eje} ({count})
-              </button>
-            );
-          })}
-        </div>
-
-        {filtradas.length === 0 && (
-          <div style={{ textAlign:"center", padding:"60px", color:"#6b7280" }}>
-            <p style={{ fontSize:"48px", marginBottom:"12px" }}>🗂️</p>
-            <p>No hay estrategias aprobadas {filtroEje ? "para este eje" : "aún"}.</p>
+      <div className="alineacion-container" style={{ animation: "fadeIn 0.4s ease" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px" }}>
+          <div>
+            <h2 style={{ color: "#1e293b", margin: 0 }}>🎯 Alineación Estratégica PMD</h2>
+            <p style={{ color: "#64748b", fontSize: "13px", marginTop: "4px" }}>Explora la jerarquía del Plan Municipal de Desarrollo</p>
           </div>
-        )}
+          <button onClick={() => setVistaAlineacion(false)} className="btn-tabla" style={{ background: "#64748b", color: "white", padding: "10px 20px", borderRadius: "8px" }}>
+            ← Volver al Dashboard
+          </button>
+        </div>
+
+        <div className="filter-container" style={{ display: "flex", flexWrap: "wrap", gap: "10px", background: "#f1f5f9", padding: "15px", borderRadius: "12px", marginBottom: "25px" }}>
+          <button className={`filter-pill ${filtroEje === null ? 'active' : ''}`} onClick={() => setFiltroEje(null)}>Ver Todo ({estrategiasPMD.length})</button>
+          {ejesUnicos.map(eje => (
+            <button key={eje} className={`filter-pill ${filtroEje === eje ? 'active' : ''}`} onClick={() => setFiltroEje(eje)} title={eje}>
+              {eje.length > 40 ? eje.substring(0, 40) + "..." : eje}
+            </button>
+          ))}
+        </div>
 
         {Object.entries(porEje).map(([eje, temas]) => (
-          <div key={eje} style={{ marginBottom:"24px", background:"white", borderRadius:"12px", overflow:"hidden", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", border:"1px solid #e5e7eb" }}>
-
-            <div style={{ background:"#dc2626", padding:"14px 20px" }}>
-              <p style={{ color:"white", fontWeight:"700", fontSize:"14px", margin:0 }}>EJE {eje}</p>
+          <div key={eje} style={{ marginBottom: "30px" }}>
+            <div style={{ background: "#1e293b", color: "white", padding: "16px 24px", borderRadius: "12px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
+              <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", opacity: 0.7 }}>Eje Rector</span>
+              <h3 style={{ margin: 0, fontSize: "16px", marginTop: "4px" }}>{eje}</h3>
             </div>
-
             {Object.entries(temas).map(([tema, politicas]) => (
-              <div key={tema}>
-                <div style={{ background:"#fef2f2", padding:"10px 20px 10px 32px", borderBottom:"1px solid #fecaca" }}>
-                  <p style={{ color:"#991b1b", fontWeight:"600", fontSize:"13px", margin:0 }}>TEMA {tema}</p>
-                </div>
-
+              <div key={tema} className="nivel-tema" style={{ marginLeft: "20px", borderLeft: "3px solid #fecaca", paddingLeft: "15px", marginTop: "15px" }}>
+                <p style={{ color: "#b91c1c", fontWeight: "700", fontSize: "13px", textTransform: "uppercase" }}>📍 TEMA: {tema}</p>
                 {Object.entries(politicas).map(([politica, objetivos]) => (
-                  <div key={politica}>
-                    <div style={{ background:"#fff7ed", padding:"8px 20px 8px 48px", borderBottom:"1px solid #fed7aa" }}>
-                      <p style={{ color:"#9a3412", fontSize:"12px", fontWeight:"600", margin:0 }}>POLITICA PUBLICA {politica}</p>
-                    </div>
-
+                  <div key={politica} className="nivel-politica" style={{ marginLeft: "20px", borderLeft: "3px solid #fed7aa", paddingLeft: "15px", marginTop: "10px" }}>
+                    <p style={{ color: "#c2410c", fontWeight: "600", fontSize: "12px" }}>📜 POLÍTICA: {politica}</p>
                     {Object.entries(objetivos).map(([objetivo, estrategias]) => (
-                      <div key={objetivo}>
-                        <div style={{ background:"#f0fdf4", padding:"8px 20px 8px 64px", borderBottom:"1px solid #bbf7d0" }}>
-                          <p style={{ color:"#166534", fontSize:"12px", fontWeight:"600", margin:0 }}>OBJETIVO {objetivo}</p>
+                      <div key={objetivo} className="nivel-objetivo" style={{ marginLeft: "20px", borderLeft: "3px solid #bbf7d0", paddingLeft: "15px", marginTop: "10px" }}>
+                        <p style={{ color: "#15803d", fontWeight: "600", fontSize: "12px" }}>🎯 OBJETIVO: {objetivo}</p>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "6px", marginTop: "8px" }}>
+                          {estrategias.map((est, idx) => (
+                            <div key={idx} style={{ background: "#eff6ff", border: "1px solid #dbeafe", padding: "10px 14px", borderRadius: "8px", fontSize: "12px", color: "#1e40af", display: "flex", gap: "10px" }}>
+                              <span style={{ fontWeight: "800", color: "#3b82f6" }}>E{idx+1}</span>
+                              <span>{est}</span>
+                            </div>
+                          ))}
                         </div>
-
-                        {estrategias.map((est, idx) => (
-                          <div key={idx} style={{ padding:"8px 20px 8px 80px", borderBottom:"1px solid #f1f5f9", background: idx % 2 === 0 ? "#fafafa" : "white" }}>
-                            <p style={{ color:"#1e40af", fontSize:"12px", margin:0 }}>
-                              <span style={{ color:"#93c5fd", marginRight:"6px" }}>ESTRATEGIA</span>
-                              {est}
-                            </p>
-                          </div>
-                        ))}
                       </div>
                     ))}
                   </div>
@@ -316,140 +247,92 @@ export default function DashboardPlaneacion() {
     <div className="layout">
       <div className="sidebar">
         <h2 className="logo">Planeación</h2>
-
-        <button className="menu-btn" onClick={() => setOpenDependencias(!openDependencias)}>
-          Dependencias {openDependencias ? "▲" : "▼"}
-        </button>
+        <button className="menu-btn" onClick={() => setOpenDependencias(!openDependencias)}>Dependencias {openDependencias ? "▲" : "▼"}</button>
         <div className={`submenu ${openDependencias ? "open" : ""}`}>
           {dependencias.map((dep) => (
-            <button key={dep.id} className={`dep-item ${dep.id === activa ? "active" : ""}`} onClick={() => { setActiva(dep.id); setVistaAlineacion(false); }}>
-              {dep.name}
-            </button>
+            <button key={dep.id} className={`dep-item ${dep.id === activa ? "active" : ""}`} onClick={() => { setActiva(dep.id); setVistaAlineacion(false); }}>{dep.name}</button>
           ))}
         </div>
-
-        <button
-          onClick={cargarAlineacion}
-          style={{ marginTop:"12px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color:"white", border:"none", borderRadius:"8px", padding:"8px 14px", cursor:"pointer", fontSize:"13px", fontWeight:"600", width:"100%", transition:"all 0.15s" }}
-        >
-          🗂️ Alineación Estratégica
+        <button onClick={cargarAlineacion} style={{ marginTop: "12px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color: "white", border: "none", borderRadius: "8px", padding: "12px", cursor: "pointer", fontSize: "13px", fontWeight: "600", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+          🎯 Alineación Estratégica
         </button>
-
         <div style={{ marginTop: "16px" }}>
           <button className="menu-btn" onClick={() => setShowLineasPendientes(!showLineasPendientes)} style={{ position: "relative", width: "100%" }}>
             📋 Líneas pendientes {showLineasPendientes ? "▲" : "▼"}
-            {lineasPendientes.length > 0 && (
-              <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#ef4444", color: "white", borderRadius: "999px", fontSize: "10px", padding: "2px 6px", fontWeight: "700" }}>
-                {lineasPendientes.length}
-              </span>
-            )}
+            {lineasPendientes.length > 0 && <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#ef4444", color: "white", borderRadius: "999px", fontSize: "10px", padding: "2px 6px", fontWeight: "700" }}>{lineasPendientes.length}</span>}
           </button>
           {showLineasPendientes && (
-            <div style={{ maxHeight: "400px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px", padding: "0 4px" }}>
-              {lineasPendientes.length === 0 ? (
-                <p style={{ fontSize: "12px", color: "#888", textAlign: "center", padding: "12px" }}>Sin líneas pendientes</p>
-              ) : (
-                lineasPendientes.map((l) => (
-                  <div key={l.id} style={{ background: "white", borderRadius: "8px", padding: "10px", border: "1px solid #e5e7eb", fontSize: "11px" }}>
-                    <p style={{ fontWeight: "700", marginBottom: "2px" }}>{l.dependencia}</p>
-                    <p style={{ color: "#6b7280", fontSize: "10px", marginBottom: "2px" }}>{l.estrategia}</p>
-                    <p style={{ marginBottom: "4px" }}>{l.lineas_accion}</p>
-                    <p style={{ color: "#9ca3af", fontSize: "10px", marginBottom: "6px" }}>
-                      📅 {new Date(l.created_at).toLocaleString("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                    <div style={{ display: "flex", gap: "4px" }}>
-                      <button
-                        onClick={async () => {
-                          await fetch(`http://localhost:3001/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) });
-                          setLineasPendientes(prev => prev.filter(x => x.id !== l.id));
-                        }}
-                        style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}
-                      >✅ Aprobar</button>
-                      <button onClick={() => setModalRechazar(l)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "4px", cursor: "pointer", fontSize: "11px" }}>❌ Rechazar</button>
-                    </div>
+            <div style={{ maxHeight: "350px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+              {lineasPendientes.map((l) => (
+                <div key={l.id} style={{ background: "white", borderRadius: "8px", padding: "10px", border: "1px solid #e5e7eb", fontSize: "11px" }}>
+                  <p style={{ fontWeight: "700", color: "#1e293b" }}>{l.dependencia}</p>
+                  <p style={{ margin: "4px 0", color: "#475569" }}>{l.lineas_accion}</p>
+                  <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
+                    <button onClick={async () => { await fetch(`http://localhost:3001/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) }); setLineasPendientes(prev => prev.filter(x => x.id !== l.id)); }} style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "5px", cursor: "pointer", fontWeight: "600" }}>Aprobar</button>
+                    <button onClick={() => setModalRechazar(l)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "5px", cursor: "pointer", fontWeight: "600" }}>Rechazar</button>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           )}
         </div>
-
-        <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); localStorage.removeItem("user"); sessionStorage.clear(); navigate("/"); }}>
-          Cerrar sesión
-        </button>
+        <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); navigate("/"); }}>Cerrar sesión</button>
       </div>
 
       <div className="contenido">
-
         {vistaAlineacion ? renderAlineacion() : (
           <>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-              <h2 className="titulo" style={{ margin: 0 }}>
-                {dependencia ? dependencia.name : "Selecciona una dependencia"}
-              </h2>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+              <h2 className="titulo" style={{ margin: 0 }}>{dependencia ? dependencia.name : "Selecciona una dependencia"}</h2>
               <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
                 {años.map(a => (
-                  <button key={a} onClick={() => setAnioFiltro(a)} style={{ padding: "6px 20px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", background: anioFiltro === a ? "#2563eb" : "transparent", color: anioFiltro === a ? "white" : "#6b7280", transition: "all 0.15s" }}>
-                    {a}
-                  </button>
+                  <button key={a} onClick={() => setAnioFiltro(a)} style={{ padding: "8px 22px", borderRadius: "8px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", background: anioFiltro === a ? "#2563eb" : "transparent", color: anioFiltro === a ? "white" : "#6b7280", transition: "0.2s" }}>{a}</button>
                 ))}
               </div>
             </div>
 
             {dependencia && Object.values(dependencia.estrategias || {}).map((est) => (
-              <div key={est.id} className="card">
-                <div className="card-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-                  <h3 style={{ margin: 0 }}>{est.name}</h3>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span className="badge">{est.lineas.length} líneas</span>
-                    <button
-                      onClick={() => { setModalHabilitarPDF(est.id); setFiltroHabilitar({ anio: anioFiltro, trimestre: null }); }}
-                      style={{ background: "#2563eb", color: "white", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
-                    >
-                      📄 Habilitar PDF
-                    </button>
-                  </div>
+              <div key={est.id} className="card" style={{ marginBottom: "25px" }}>
+                <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", color: "#1e293b" }}>{est.name}</h3>
+                  <button onClick={() => setModalHabilitarPDF(est.id)} style={{ background: "#2563eb", color: "white", border: "none", borderRadius: "6px", padding: "8px 14px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>📄 Habilitar PDF</button>
                 </div>
-
                 <div className="tabla-wrapper">
                   <table className="tabla-poa">
                     <thead>
                       <tr>
-                        <th rowSpan="2">Acción</th>
-                        <th rowSpan="2">#</th>
-                        <th rowSpan="2">Línea de acción</th>
-                        <th colSpan="7">Programado {anioFiltro}</th>
-                        <th colSpan="7">Ejecutado {anioFiltro}</th>
+                        <th rowSpan="2" style={{ width: "50px" }}>Acción</th>
+                        <th rowSpan="2" style={{ width: "40px" }}>#</th>
+                        <th rowSpan="2" style={{ textAlign: "left", minWidth: "250px" }}>Línea de Acción</th>
+                        <th colSpan="7" className="header-section-prog">📊 Programado {anioFiltro}</th>
+                        <th colSpan="7" className="header-section-ejec">✅ Ejecutado {anioFiltro}</th>
                       </tr>
                       <tr>
-                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Total</th><th>Comentario</th><th>Revisión</th>
+                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th className="col-total">Total</th><th>Comentario</th><th>Revisión</th>
+                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th className="col-total">Total</th><th>Comentario</th><th>Revisión</th>
                       </tr>
                     </thead>
                     <tbody>
                       {est.lineas.map((linea, i) => (
-                        <tr key={`${est.id}-${i}-${linea.id}`}>
-                          <td style={{ textAlign: "center" }}>
-                            <button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer" }}>🗑️</button>
-                          </td>
-                          <td>{i + 1}</td>
-                          <td style={{ minWidth: "200px" }}>{linea.lineas_accion}</td>
-                          {[
-                            { anio: anioFiltro, tipo: "programado" },
-                            { anio: anioFiltro, tipo: "ejecutado" },
-                          ].map(({ anio, tipo }) => (
-                            <React.Fragment key={`${est.id}-${linea.id}-${i}-${anio}-${tipo}`}>
-                              <td>{getValor(linea.id, anio, 1, tipo)}</td>
-                              <td>{getValor(linea.id, anio, 2, tipo)}</td>
-                              <td>{getValor(linea.id, anio, 3, tipo)}</td>
-                              <td>{getValor(linea.id, anio, 4, tipo)}</td>
-                              <td><b>{sumar(linea.id, anio, tipo)}</b></td>
-                              <td style={{ fontSize: "10px" }}>{getComentario(linea.id, anio, tipo)}</td>
-                              <td style={{ minWidth: "140px" }}>
-                                <div style={{ fontSize: "9px", color: "#6b7280", marginBottom: "2px" }}>📅 {getFechaEnvio(linea.id, anio, tipo)}</div>
-                                <EstadoBadge estado={getEstadoRevision(linea.id, anio, tipo)} />
-                                <div style={{ display: "flex", gap: "2px", marginTop: "4px" }}>
-                                  <button onClick={() => revisarTrimestre(linea.id, anio, tipo, "aprobado", dependencia.id)} style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "2px 4px", fontSize: "10px", cursor: "pointer" }}>✅ Aprobar</button>
-                                  <button onClick={() => revisarTrimestre(linea.id, anio, tipo, "rechazado", dependencia.id)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "2px 4px", fontSize: "10px", cursor: "pointer" }}>❌ Rechazar</button>
+                        <tr key={linea.id}>
+                          <td style={{ textAlign: "center" }}><button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px", borderRadius: "6px", cursor: "pointer" }}>🗑️</button></td>
+                          <td style={{ textAlign: "center", fontWeight: "600", color: "#64748b" }}>{i + 1}</td>
+                          <td style={{ fontSize: "12px", lineHeight: "1.4" }}>{linea.lineas_accion}</td>
+                          {[{ anio: anioFiltro, tipo: "programado" }, { anio: anioFiltro, tipo: "ejecutado" }].map(({ anio, tipo }) => (
+                            <React.Fragment key={`${tipo}-${linea.id}`}>
+                              <td style={{ textAlign: "center" }}>{getValor(linea.id, anio, 1, tipo)}</td>
+                              <td style={{ textAlign: "center" }}>{getValor(linea.id, anio, 2, tipo)}</td>
+                              <td style={{ textAlign: "center" }}>{getValor(linea.id, anio, 3, tipo)}</td>
+                              <td style={{ textAlign: "center" }}>{getValor(linea.id, anio, 4, tipo)}</td>
+                              <td className="col-total" style={{ textAlign: "center" }}>{sumar(linea.id, anio, tipo)}</td>
+                              <td style={{ fontSize: "10px", color: "#64748b", maxWidth: "150px" }}>{getComentario(linea.id, anio, tipo) || "-"}</td>
+                              <td>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
+                                  <EstadoBadge estado={getEstadoRevision(linea.id, anio, tipo)} />
+                                  <div style={{ display: "flex", gap: "4px" }}>
+                                    <button className="btn-tabla btn-aprobar" onClick={() => revisarTrimestre(linea.id, anio, tipo, "aprobado", dependencia.id)}>Aprobar</button>
+                                    <button className="btn-tabla btn-rechazar" onClick={() => revisarTrimestre(linea.id, anio, tipo, "rechazado", dependencia.id)}>Rechazar</button>
+                                  </div>
                                 </div>
                               </td>
                             </React.Fragment>
@@ -461,91 +344,42 @@ export default function DashboardPlaneacion() {
                 </div>
               </div>
             ))}
-
             {dependencia && (
-              <div style={{ marginTop: "24px", marginBottom: "24px", display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => setModalPDF(true)}
-                  style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "8px", padding: "10px 24px", fontSize: "14px", fontWeight: "600", cursor: "pointer" }}
-                >
-                  📄 Exportar PDF
-                </button>
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px" }}>
+                <button onClick={() => setModalPDF(true)} style={{ background: "#dc2626", color: "white", border: "none", borderRadius: "8px", padding: "12px 25px", fontSize: "14px", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 10px rgba(220, 38, 38, 0.2)" }}>📄 Exportar PDF Global</button>
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Modal Habilitar PDF */}
+      {/* MODALES REUTILIZADOS */}
       {modalHabilitarPDF && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-          <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ marginBottom: "16px" }}>📄 Habilitar PDF para {dependencia?.name}</h3>
-            <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Año</label>
-            <select value={filtroHabilitar.anio} onChange={e => setFiltroHabilitar(prev => ({ ...prev, anio: Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "12px" }}>
-              <option value={2025}>2025</option>
-              <option value={2026}>2026</option>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "white", borderRadius: "15px", padding: "25px", width: "350px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>
+            <h3 style={{ marginBottom: "15px", fontSize: "16px" }}>Habilitar PDF</h3>
+            <select value={filtroHabilitar.anio} onChange={e => setFiltroHabilitar(p => ({ ...p, anio: Number(e.target.value) }))} style={{ width: "100%", padding: "10px", marginBottom: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <option value={2025}>2025</option><option value={2026}>2026</option>
             </select>
-            <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Período</label>
-            <select value={filtroHabilitar.trimestre ?? ""} onChange={e => setFiltroHabilitar(prev => ({ ...prev, trimestre: e.target.value === "" ? null : Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "20px" }}>
-              <option value="">Año completo</option>
-              <option value={1}>T1 - Enero a Marzo</option>
-              <option value={2}>T2 - Abril a Junio</option>
-              <option value={3}>T3 - Julio a Septiembre</option>
-              <option value={4}>T4 - Octubre a Diciembre</option>
+            <select value={filtroHabilitar.trimestre ?? ""} onChange={e => setFiltroHabilitar(p => ({ ...p, trimestre: e.target.value === "" ? null : Number(e.target.value) }))} style={{ width: "100%", padding: "10px", marginBottom: "20px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+              <option value="">Año completo</option><option value={1}>Trimestre 1</option><option value={2}>Trimestre 2</option><option value={3}>Trimestre 3</option><option value={4}>Trimestre 4</option>
             </select>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button onClick={() => setModalHabilitarPDF(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer", background: "white" }}>Cancelar</button>
-              <button onClick={habilitarPDF} style={{ padding: "8px 16px", borderRadius: "6px", background: "#2563eb", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}>✅ Habilitar</button>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setModalHabilitarPDF(null)} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", background: "white" }}>Cancelar</button>
+              <button onClick={habilitarPDF} style={{ flex: 1, padding: "10px", borderRadius: "8px", background: "#2563eb", color: "white", border: "none", fontWeight: "600" }}>Confirmar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal PDF exportar */}
-      {modalPDF && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-          <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
-            <h3 style={{ marginBottom: "16px" }}>📄 Exportar PDF</h3>
-            <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Año</label>
-            <select value={filtroPDF.anio} onChange={e => setFiltroPDF(prev => ({ ...prev, anio: Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "12px" }}>
-              <option value={2025}>2025</option>
-              <option value={2026}>2026</option>
-            </select>
-            <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", fontWeight: "600" }}>Trimestre</label>
-            <select value={filtroPDF.trimestre ?? ""} onChange={e => setFiltroPDF(prev => ({ ...prev, trimestre: e.target.value === "" ? null : Number(e.target.value) }))} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "20px" }}>
-              <option value="">Año completo</option>
-              <option value={1}>T1 - Enero a Marzo</option>
-              <option value={2}>T2 - Abril a Junio</option>
-              <option value={3}>T3 - Julio a Septiembre</option>
-              <option value={4}>T4 - Octubre a Diciembre</option>
-            </select>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button onClick={() => setModalPDF(false)} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer", background: "white" }}>Cancelar</button>
-              <button onClick={() => { generarPDF(dependencia, dependencia.estrategias, trimestres, filtroPDF, dependencia.enlace, dependencia.titular); setModalPDF(false); }} style={{ padding: "8px 16px", borderRadius: "6px", background: "#dc2626", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}>📄 Descargar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal rechazar línea */}
       {modalRechazar && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
-          <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "360px" }}>
-            <h3 style={{ marginBottom: "12px" }}>❌ Rechazar línea</h3>
-            <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "12px" }}>{modalRechazar.lineas_accion}</p>
-            <textarea placeholder="Motivo del rechazo..." value={comentarioRechazo} onChange={e => setComentarioRechazo(e.target.value)} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #ddd", marginBottom: "16px", minHeight: "80px", resize: "vertical" }} />
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button onClick={() => { setModalRechazar(null); setComentarioRechazo(""); }} style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #ddd", cursor: "pointer" }}>Cancelar</button>
-              <button
-                onClick={async () => {
-                  await fetch(`http://localhost:3001/api/lineas/rechazar/${modalRechazar.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comentario: comentarioRechazo, user_id: null }) });
-                  setLineasPendientes(prev => prev.filter(x => x.id !== modalRechazar.id));
-                  setModalRechazar(null);
-                  setComentarioRechazo("");
-                }}
-                style={{ padding: "8px 16px", borderRadius: "6px", background: "#dc2626", color: "white", border: "none", cursor: "pointer", fontWeight: "600" }}
-              >Confirmar rechazo</button>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "white", borderRadius: "15px", padding: "25px", width: "400px" }}>
+            <h3 style={{ color: "#b91c1c" }}>Rechazar Línea de Acción</h3>
+            <textarea placeholder="Explica el motivo del rechazo..." value={comentarioRechazo} onChange={e => setComentarioRechazo(e.target.value)} style={{ width: "100%", height: "100px", padding: "12px", marginTop: "15px", borderRadius: "8px", border: "1px solid #cbd5e1", resize: "none" }} />
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              <button onClick={() => setModalRechazar(null)} style={{ flex: 1, padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1" }}>Cerrar</button>
+              <button onClick={async () => { await fetch(`http://localhost:3001/api/lineas/rechazar/${modalRechazar.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ comentario: comentarioRechazo, user_id: null }) }); setLineasPendientes(p => p.filter(x => x.id !== modalRechazar.id)); setModalRechazar(null); setComentarioRechazo(""); }} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "8px", fontWeight: "600" }}>Enviar Rechazo</button>
             </div>
           </div>
         </div>
