@@ -11,7 +11,7 @@ const MODULOS_POR_ROL = {
   admin:                  ["SEGUIMIENTO", "ESTRATEGICA", "INVERSION"],
   planeacion_estrategica: ["ESTRATEGICA"],
   inversion_publica:      ["INVERSION"],
-  dependencias:           ["SEGUIMIENTO"],
+ // dependencias:           ["SEGUIMIENTO"],
   viewer:                 ["SEGUIMIENTO"],
 }
 

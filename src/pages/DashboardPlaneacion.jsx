@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import socket from "../services/socket";
 import { generarPDF } from "../utils/generarPDF";
+import ReportesPlaneacion from "./ReportesPlaneacion"
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -21,9 +22,20 @@ export default function DashboardPlaneacion() {
   const [vistaAlineacion, setVistaAlineacion] = useState(false);
   const [estrategiasPMD, setEstrategiasPMD] = useState([]);
   const [filtroEje, setFiltroEje] = useState(null);
+  const [vistaReportes, setVistaReportes] = useState(false);
+
   const navigate = useNavigate();
   const años = [2025, 2026];
-
+const irAReportes = () => {
+    setVistaReportes(true);
+    setVistaAlineacion(false);
+    setActiva(null);
+  };
+  const irADashboard = (depId) => {
+    setVistaReportes(false);
+    setVistaAlineacion(false);
+    setActiva(depId);
+  };
   const dependencia = dependencias.find((d) => d.id === activa);
 
   const eliminarLineaDeAccion = async (lineaId) => {
@@ -244,43 +256,117 @@ export default function DashboardPlaneacion() {
   };
 
   return (
-    <div className="layout">
-      <div className="sidebar">
-        <h2 className="logo">Planeación</h2>
-        <button className="menu-btn" onClick={() => setOpenDependencias(!openDependencias)}>Dependencias {openDependencias ? "▲" : "▼"}</button>
-        <div className={`submenu ${openDependencias ? "open" : ""}`}>
-          {dependencias.map((dep) => (
-            <button key={dep.id} className={`dep-item ${dep.id === activa ? "active" : ""}`} onClick={() => { setActiva(dep.id); setVistaAlineacion(false); }}>{dep.name}</button>
+  <div className="layout">
+  <div className="sidebar">
+    <h2 className="logo">Planeación</h2>
+
+    <button
+      onClick={() => {
+        setVistaReportes(true);
+        setVistaAlineacion(false);
+        setActiva(null);
+      }}
+      className={`menu-btn ${vistaReportes ? "active" : ""}`}
+      style={{
+        background: vistaReportes ? "#0e7490" : "#0891b2",
+        color: "white",
+        marginBottom: "8px",
+        width: "100%",
+        border: "none",
+        borderRadius: "8px",
+        padding: "10px",
+        cursor: "pointer"
+      }}
+    >
+      📊 Reportes Globales
+    </button>
+
+    <button
+      onClick={() => {
+        cargarAlineacion(); 
+        setVistaAlineacion(true);
+        setVistaReportes(false);
+        setActiva(null);
+      }}
+      style={{
+        marginTop: "4px",
+        background: vistaAlineacion ? "#5b21b6" : "#7c3aed",
+        color: "white",
+        border: "none",
+        borderRadius: "8px",
+        padding: "12px",
+        cursor: "pointer",
+        fontSize: "13px",
+        fontWeight: "600",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px"
+      }}
+    >
+      🎯 Alineación Estratégica
+    </button>
+
+    <div style={{ margin: "15px 0", borderBottom: "1px solid #334155" }} />
+
+    <button className="menu-btn" onClick={() => setOpenDependencias(!openDependencias)}>
+      🏢 Dependencias {openDependencias ? "▲" : "▼"}
+    </button>
+    
+    <div className={`submenu ${openDependencias ? "open" : ""}`}>
+      {dependencias.map((dep) => (
+        <button
+          key={dep.id}
+          className={`dep-item ${dep.id === activa && !vistaAlineacion && !vistaReportes ? "active" : ""}`}
+          onClick={() => {
+            setActiva(dep.id);
+            setVistaAlineacion(false);
+            setVistaReportes(false);
+          }}
+        >
+          {dep.name}
+        </button>
+      ))}
+    </div>
+
+    <div style={{ marginTop: "16px" }}>
+      <button className="menu-btn" onClick={() => setShowLineasPendientes(!showLineasPendientes)} style={{ position: "relative", width: "100%" }}>
+        📋 Líneas pendientes {showLineasPendientes ? "▲" : "▼"}
+        {lineasPendientes.length > 0 && (
+          <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#ef4444", color: "white", borderRadius: "999px", fontSize: "10px", padding: "2px 6px", fontWeight: "700" }}>
+            {lineasPendientes.length}
+          </span>
+        )}
+      </button>
+
+      {showLineasPendientes && (
+        <div style={{ maxHeight: "300px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+          {lineasPendientes.map((l) => (
+            <div key={l.id} className="notif-card-dark" style={{ background: "white", borderRadius: "8px", padding: "10px", border: "1px solid #e5e7eb", fontSize: "11px" }}>
+              <p style={{ fontWeight: "700", color: "#1e293b" }}>{l.dependencia}</p>
+              <p style={{ margin: "4px 0", color: "#475569" }}>{l.lineas_accion}</p>
+              <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
+                <button className="btn-aprobar-mini" onClick={() => { /* tu lógica */ }}>Aprobar</button>
+                <button className="btn-rechazar-mini" onClick={() => setModalRechazar(l)}>Rechazar</button>
+              </div>
+            </div>
           ))}
         </div>
-        <button onClick={cargarAlineacion} style={{ marginTop: "12px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color: "white", border: "none", borderRadius: "8px", padding: "12px", cursor: "pointer", fontSize: "13px", fontWeight: "600", width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-          🎯 Alineación Estratégica
-        </button>
-        <div style={{ marginTop: "16px" }}>
-          <button className="menu-btn" onClick={() => setShowLineasPendientes(!showLineasPendientes)} style={{ position: "relative", width: "100%" }}>
-            📋 Líneas pendientes {showLineasPendientes ? "▲" : "▼"}
-            {lineasPendientes.length > 0 && <span style={{ position: "absolute", top: "-6px", right: "-6px", background: "#ef4444", color: "white", borderRadius: "999px", fontSize: "10px", padding: "2px 6px", fontWeight: "700" }}>{lineasPendientes.length}</span>}
-          </button>
-          {showLineasPendientes && (
-            <div style={{ maxHeight: "350px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
-              {lineasPendientes.map((l) => (
-                <div key={l.id} style={{ background: "white", borderRadius: "8px", padding: "10px", border: "1px solid #e5e7eb", fontSize: "11px" }}>
-                  <p style={{ fontWeight: "700", color: "#1e293b" }}>{l.dependencia}</p>
-                  <p style={{ margin: "4px 0", color: "#475569" }}>{l.lineas_accion}</p>
-                  <div style={{ display: "flex", gap: "4px", marginTop: "8px" }}>
-                    <button onClick={async () => { await fetch(`http://localhost:3001/api/lineas/aprobar/${l.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: null }) }); setLineasPendientes(prev => prev.filter(x => x.id !== l.id)); }} style={{ flex: 1, background: "#16a34a", color: "white", border: "none", borderRadius: "4px", padding: "5px", cursor: "pointer", fontWeight: "600" }}>Aprobar</button>
-                    <button onClick={() => setModalRechazar(l)} style={{ flex: 1, background: "#dc2626", color: "white", border: "none", borderRadius: "4px", padding: "5px", cursor: "pointer", fontWeight: "600" }}>Rechazar</button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); navigate("/"); }}>Cerrar sesión</button>
-      </div>
+      )}
+    </div>
+
+    <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); navigate("/"); }}>
+      Cerrar sesión
+    </button>
+  </div>
 
       <div className="contenido">
-        {vistaAlineacion ? renderAlineacion() : (
+        {vistaReportes ? (
+          <ReportesPlaneacion />
+        ) : vistaAlineacion ? (
+          renderAlineacion()
+        ) : (
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
               <h2 className="titulo" style={{ margin: 0 }}>{dependencia ? dependencia.name : "Selecciona una dependencia"}</h2>
@@ -353,7 +439,6 @@ export default function DashboardPlaneacion() {
         )}
       </div>
 
-      {/* MODALES REUTILIZADOS */}
       {modalHabilitarPDF && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
           <div style={{ background: "white", borderRadius: "15px", padding: "25px", width: "350px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}>

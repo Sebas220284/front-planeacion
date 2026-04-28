@@ -12,6 +12,7 @@ export default function DashboardEstrategica() {
   const [modalRevisar, setModalRevisar] = useState(null)
   const [comentario, setComentario] = useState("")
   const [user, setUser] = useState(null)
+  const logout = () => { localStorage.removeItem("token"); window.location.href = "/"; };
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -127,6 +128,8 @@ export default function DashboardEstrategica() {
             ✉️ Enviar plan
           </button>
         )}
+                  <button className="logout-btn" onClick={logout}>Cerrar sesión</button>
+
       </div>
 
       <div style={{ flex:1, padding:"32px", overflowY:"auto", background:"#f8fafc" }}>

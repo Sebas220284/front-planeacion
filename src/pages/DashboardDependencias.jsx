@@ -20,7 +20,7 @@ export default function DashboardDependencias() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch("https://sistema-planeacion-production.up.railway.app/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+    fetch("http://localhost:3001/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => {
         setUser(data);
@@ -312,7 +312,6 @@ export default function DashboardDependencias() {
               </table>
             </div>
 
-            {/* Botones PDF por trimestre */}
             <div style={{ marginTop: "16px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
               {[
                 { label:"T1-2025", anio:2025, trimestre:1 },
@@ -349,7 +348,6 @@ export default function DashboardDependencias() {
         )}
       </div>
 
-      {/* Modal PDF descarga */}
       {modalPDF && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
           <div style={{ background: "white", borderRadius: "12px", padding: "24px", width: "320px", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
