@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import socket from "../services/socket";
 import { generarPDF } from "../utils/generarPDF";
 import ReportesPlaneacion from "./ReportesPlaneacion"
+import FichasTecnicas from "./FichasTecnicas";
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -23,7 +24,7 @@ export default function DashboardPlaneacion() {
   const [estrategiasPMD, setEstrategiasPMD] = useState([]);
   const [filtroEje, setFiltroEje] = useState(null);
   const [vistaReportes, setVistaReportes] = useState(false);
-
+  const [vistaFichas, setVistaFichas] = useState(false)
   const navigate = useNavigate();
   const años = [2025, 2026];
 const irAReportes = () => {
@@ -280,7 +281,28 @@ const irAReportes = () => {
     >
       📊 Reportes Globales
     </button>
-
+<button
+  onClick={() => { 
+    setVistaFichas(true);    
+    setVistaAlineacion(false); 
+    setVistaReportes(false);  
+    setActiva(null);          
+  }}
+  style={{ 
+    marginTop: "8px", 
+    background: vistaFichas ? "#854d0e" : "#d97706", 
+    color: "white", 
+    border: "none", 
+    borderRadius: "8px", 
+    padding: "12px", 
+    cursor: "pointer", 
+    fontSize: "13px", 
+    fontWeight: "600", 
+    width: "100%" 
+  }}
+>
+  📋 Fichas Técnicas
+</button>
     <button
       onClick={() => {
         cargarAlineacion(); 
@@ -367,7 +389,27 @@ const irAReportes = () => {
         ) : vistaAlineacion ? (
           renderAlineacion()
         ) : (
+
+
+          
           <>
+          <div className="contenido">
+  {vistaFichas ? (
+    <FichasTecnicas dependencias={dependencias} />
+  ) : vistaReportes ? (
+    <ReportesPlaneacion />
+  ) : vistaAlineacion ? (
+    renderAlineacion()
+  ) : dependencia ? (
+    <>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+          <h2 className="titulo">{dependencia.name}</h2>
+      </div>
+    </>
+  ) : (
+    <div className="p-10">Selecciona una dependencia o un apartado del menú</div>
+  )}
+</div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
               <h2 className="titulo" style={{ margin: 0 }}>{dependencia ? dependencia.name : "Selecciona una dependencia"}</h2>
               <div style={{ display: "flex", gap: "6px", background: "#f3f4f6", borderRadius: "10px", padding: "4px" }}>
