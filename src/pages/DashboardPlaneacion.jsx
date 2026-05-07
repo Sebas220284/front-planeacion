@@ -346,7 +346,7 @@ const irAReportes = () => {
             setVistaAlineacion(false);
             setVistaReportes(false);
           }}
-        >
+        >  
           {dep.name}
         </button>
       ))}
@@ -430,21 +430,19 @@ const irAReportes = () => {
                     <thead>
                       <tr>
                         <th rowSpan="2" style={{ width: "50px" }}>Acción</th>
-                        <th rowSpan="2" style={{ width: "40px" }}>#</th>
                         <th rowSpan="2" style={{ textAlign: "left", minWidth: "250px" }}>Línea de Acción</th>
                         <th colSpan="7" className="header-section-prog">📊 Programado {anioFiltro}</th>
                         <th colSpan="7" className="header-section-ejec">✅ Ejecutado {anioFiltro}</th>
                       </tr>
                       <tr>
-                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th className="col-total">Total</th><th>Comentario</th><th>Revisión</th>
-                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th className="col-total">Total</th><th>Comentario</th><th>Revisión</th>
+                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th className="col-total">Total</th><th>Revisión</th>
+                        <th>T1</th><th>T2</th><th>T3</th><th>T4</th><th className="col-total">Total</th><th>Revisión</th>
                       </tr>
                     </thead>
                     <tbody>
                       {est.lineas.map((linea, i) => (
                         <tr key={linea.id}>
                           <td style={{ textAlign: "center" }}><button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "6px", borderRadius: "6px", cursor: "pointer" }}>🗑️</button></td>
-                          <td style={{ textAlign: "center", fontWeight: "600", color: "#64748b" }}>{i + 1}</td>
                           <td style={{ fontSize: "12px", lineHeight: "1.4" }}>{linea.lineas_accion}</td>
                           {[{ anio: anioFiltro, tipo: "programado" }, { anio: anioFiltro, tipo: "ejecutado" }].map(({ anio, tipo }) => (
                             <React.Fragment key={`${tipo}-${linea.id}`}>
@@ -453,7 +451,7 @@ const irAReportes = () => {
                               <td style={{ textAlign: "center" }}>{getValor(linea.id, anio, 3, tipo)}</td>
                               <td style={{ textAlign: "center" }}>{getValor(linea.id, anio, 4, tipo)}</td>
                               <td className="col-total" style={{ textAlign: "center" }}>{sumar(linea.id, anio, tipo)}</td>
-                              <td style={{ fontSize: "10px", color: "#64748b", maxWidth: "150px" }}>{getComentario(linea.id, anio, tipo) || "-"}</td>
+                             {/* <td style={{ fontSize: "10px", color: "#64748b", maxWidth: "150px" }}>{getComentario(linea.id, anio, tipo) || "-"}</td>*/}
                               <td>
                                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "center" }}>
                                   <EstadoBadge estado={getEstadoRevision(linea.id, anio, tipo)} />
