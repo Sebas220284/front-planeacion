@@ -94,11 +94,11 @@ return <DashboardDependencias/>
           animate={{ opacity: 1, x: 0 }}
           className="dashboard-wrapper"
         >
-          {modulosPermitidos.length > 1 && (
+        {/*  {modulosPermitidos.length > 1 && (
             <button className="back-to-menu" onClick={() => setModuloSeleccionado(null)}>
               ← Cambiar de Módulo
             </button>
-          )}
+          )}*/}
 
           {moduloSeleccionado === "SEGUIMIENTO" && (
             user.rol === "dependencias"
