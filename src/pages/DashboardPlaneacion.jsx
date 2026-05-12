@@ -223,7 +223,6 @@ export default function DashboardPlaneacion() {
 
   return (
     <div className="layout">
-      {/* SIDEBAR ORIGINAL */}
       <div className="sidebar">
         <h2 className="logo">Planeación</h2>
         <button onClick={() => { setVistaReportes(true); setVistaAlineacion(false); setVistaFichas(false); setActiva(null); }} className={`menu-btn ${vistaReportes ? "active" : ""}`}>📊 Reportes Globales</button>
@@ -252,12 +251,10 @@ export default function DashboardPlaneacion() {
           renderAlineacion()
         ) : (
           <>
-            {/* HEADER CON DISEÑO ORIGINAL */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
               <h2 className="titulo">{dependencia ? dependencia.name : "Selecciona una dependencia"}</h2>
               
               <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-                {/* SELECTOR DE ESTRATEGIAS AGREGADO */}
                 {dependencia && (
                   <select 
                     value={filtroEstrategia} 
@@ -269,7 +266,6 @@ export default function DashboardPlaneacion() {
                   </select>
                 )}
 
-                {/* BOTONES DE AÑO CON DISEÑO ORIGINAL */}
                 <div style={{ display: "flex", gap: "10px", background: "#f3f4f6", padding: "5px", borderRadius: "12px" }}>
                   {años.map((a) => (
                     <button
@@ -293,7 +289,6 @@ export default function DashboardPlaneacion() {
               </div>
             </div>
 
-            {/* TABLA CON DISEÑO ORIGINAL */}
             {dependencia && estrategiasAMostrar.length > 0 ? (
               <div className="card">
                 <div className="tabla-wrapper">
@@ -362,7 +357,6 @@ export default function DashboardPlaneacion() {
         )}
       </div>
 
-      {/* MODAL PDF ORIGINAL */}
       {modalPDF && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
@@ -387,7 +381,6 @@ export default function DashboardPlaneacion() {
         </div>
       )}
 
-      {/* MODAL RECHAZAR ORIGINAL */}
       {modalRechazar && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
@@ -406,7 +399,6 @@ export default function DashboardPlaneacion() {
         </div>
       )}
 
-      {/* MODAL HABILITAR PDF ORIGINAL */}
       {modalHabilitarPDF && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
