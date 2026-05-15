@@ -283,7 +283,7 @@ export const exportarFichaPDF = (f) => {
   doc.setFillColor(180,140,0); doc.rect(M,y,tipoW,10,"F")
   doc.setDrawColor(150,115,0); doc.rect(M,y,tipoW,10)
   doc.setFont("helvetica","bold"); doc.setFontSize(6.5); doc.setTextColor(255,255,255)
-  doc.text("Tipo de", M+tipoW/2, y+4, {align:"center"})
+  doc.text("Tipo Indicador", M+tipoW/2, y+4, {align:"center"})
   doc.text("indicador", M+tipoW/2, y+8, {align:"center"})
 
   cLbls.forEach((h,i)=>{

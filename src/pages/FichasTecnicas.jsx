@@ -19,6 +19,19 @@ const FORM_VACIO = {
   calendarizacion:{}, dependency_id:"", strategy_id:""
 }
 
+// Campos que se comparan para detectar cambios
+const CAMPOS_COMPARAR = [
+  ["nombre_indicador","Nombre"],["definicion","Definición"],["proposito","Propósito"],
+  ["formula","Fórmula"],["unidad_medida","Unidad de medida"],["anio","Año"],
+  ["valor_inicial","Valor inicial"],["avance_anual","Avance anual"],
+  ["meta_anual","Meta anual"],["meta_trianual","Meta trianual"],
+  ["anio_base","Año base"],["valor_anio_base","Valor año base"],["valor_minimo","Valor mínimo"],
+  ["analisis_cualitativo","Análisis cualitativo"],["medios_verificacion","Medios de verificación"],
+  ["supuestos","Supuestos"],["tipo_evaluacion","Tipo evaluación"],
+  ["periodicidad","Periodicidad"],["tipo_indicador","Tipo indicador"],
+  ["responsable","Responsable"],["correo_electronico","Correo"],["telefono","Teléfono"],
+]
+
 export default function FichasTecnicas({ dependencias = [] }) {
   const [vista, setVista] = useState("lista")
   const [fichas, setFichas] = useState([])
@@ -30,11 +43,30 @@ export default function FichasTecnicas({ dependencias = [] }) {
   const [enviando, setEnviando] = useState(false)
   const [estrategiasDep, setEstrategiasDep] = useState([])
   const [cargandoEst, setCargandoEst] = useState(false)
+  const [comentarioCambio, setComentarioCambio] = useState("")
+
+  // Estados de historial
+  const [historial, setHistorial] = useState([])
+  const [cargandoHist, setCargandoHist] = useState(false)
+  const [modalHistorial, setModalHistorial] = useState(false)
+  const [versionExpandida, setVersionExpandida] = useState(null)
+  const [versionComparar, setVersionComparar] = useState(null)
 
   useEffect(() => {
     fetch("http://localhost:3001/api/fichas/lista")
       .then(r => r.json()).then(setFichas).catch(() => {})
   }, [])
+
+  const cargarHistorial = async (fichaId) => {
+    setCargandoHist(true)
+    try {
+      const res = await fetch(`http://localhost:3001/api/fichas/historial/${fichaId}`)
+      const data = await res.json()
+      setHistorial(data)
+    } catch(e) { console.error(e) }
+    setCargandoHist(false)
+    setModalHistorial(true)
+  }
 
   const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
@@ -59,9 +91,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
   const getCal = () => {
     if (!form.calendarizacion) return {}
-    if (typeof form.calendarizacion === "string") {
-      try { return JSON.parse(form.calendarizacion) } catch { return {} }
-    }
+    if (typeof form.calendarizacion === "string") { try { return JSON.parse(form.calendarizacion) } catch { return {} } }
     return form.calendarizacion
   }
 
@@ -76,11 +106,12 @@ export default function FichasTecnicas({ dependencias = [] }) {
     setEnviando(true)
     try {
       const url = editando ? `http://localhost:3001/api/fichas/actualizar/${editando}` : "http://localhost:3001/api/fichas/crear"
-      const res = await fetch(url, { method: editando?"PUT":"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(form) })
+      const payload = { ...form, comentario_cambio: comentarioCambio }
+      const res = await fetch(url, { method: editando?"PUT":"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) })
       const data = await res.json()
       if (editando) setFichas(prev => prev.map(f => f.id===editando ? data : f))
       else setFichas(prev => [data, ...prev])
-      setForm(FORM_VACIO); setEditando(null); setVista("lista")
+      setForm(FORM_VACIO); setEditando(null); setComentarioCambio(""); setVista("lista")
       alert("✅ Ficha guardada correctamente")
     } catch { alert("Error al guardar") }
     setEnviando(false)
@@ -93,7 +124,12 @@ export default function FichasTecnicas({ dependencias = [] }) {
     if (fichaSel?.id===id) setFichaSel(null)
   }
 
-  const abrirEditar = (ficha) => { setForm({...FORM_VACIO, ...ficha}); setEditando(ficha.id); setVista("form") }
+  const abrirEditar = (ficha) => {
+    setForm({...FORM_VACIO, ...ficha})
+    setEditando(ficha.id)
+    setComentarioCambio("")
+    setVista("form")
+  }
 
   const fichasFiltradas = fichas.filter(f => {
     if (filtroAnio && Number(f.anio)!==filtroAnio) return false
@@ -111,6 +147,15 @@ export default function FichasTecnicas({ dependencias = [] }) {
     { name:"meta trianual", value:Number(fichaSel.meta_trianual||0), fill:"#505050" },
   ] : []
 
+  // Detecta qué campos cambiaron entre versión y versión actual
+  const getDiferencias = (versionAnterior, actual) => {
+    return CAMPOS_COMPARAR.filter(([campo]) => {
+      const a = String(versionAnterior[campo]||"")
+      const b = String(actual?.[campo]||"")
+      return a !== b
+    })
+  }
+
   const inputStyle = { width:"100%", padding:"8px 10px", borderRadius:"6px", border:"1px solid #d1d5db", fontSize:"13px", boxSizing:"border-box", color:"#000", background:"#fff" }
   const labelStyle = { display:"block", fontWeight:"600", fontSize:"12px", marginBottom:"4px", color:"#374151" }
   const sectionStyle = { background:"#f8fafc", borderRadius:"8px", padding:"16px", marginBottom:"16px", border:"1px solid #e5e7eb" }
@@ -123,7 +168,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
           <h2 style={{ margin:"0 0 4px", color:"#1e293b" }}>📋 Fichas Técnicas de Indicadores</h2>
           <p style={{ margin:0, color:"#6b7280", fontSize:"13px" }}>PMD 2024-2027</p>
         </div>
-        <button onClick={() => { setForm(FORM_VACIO); setEditando(null); setVista(vista==="form"?"lista":"form") }}
+        <button onClick={() => { setForm(FORM_VACIO); setEditando(null); setComentarioCambio(""); setVista(vista==="form"?"lista":"form") }}
           style={{ background:vista==="form"?"#6b7280":"#dc2626", color:"white", border:"none", borderRadius:"8px", padding:"10px 20px", fontSize:"13px", fontWeight:"600", cursor:"pointer" }}>
           {vista==="form"?"← Volver":"+ Nueva ficha"}
         </button>
@@ -134,41 +179,33 @@ export default function FichasTecnicas({ dependencias = [] }) {
         <div style={{ background:"white", borderRadius:"12px", padding:"24px", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", maxWidth:"860px", margin:"0 auto" }}>
           <h3 style={{ margin:"0 0 20px", color:"#1e293b" }}>{editando?"✏️ Editar ficha":"✨ Nueva ficha técnica"}</h3>
 
-          {/* SECCIÓN 1: Identificación */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>📌 Identificación del indicador</p>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
-
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={labelStyle}>Nombre del indicador *</label>
                 <input name="nombre_indicador" value={form.nombre_indicador} onChange={handleChange} placeholder="Ej: Incremento del índice de vialidades en buen estado" style={inputStyle} />
               </div>
-
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={labelStyle}>Definición</label>
-                <textarea name="definicion" value={form.definicion||""} onChange={handleChange} rows={3} placeholder="Describe qué mide este indicador..." style={{ ...inputStyle, resize:"vertical" }} />
+                <textarea name="definicion" value={form.definicion||""} onChange={handleChange} rows={3} style={{ ...inputStyle, resize:"vertical" }} />
               </div>
-
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={labelStyle}>Propósito</label>
                 <textarea name="proposito" value={form.proposito||""} onChange={handleChange} rows={2} style={{ ...inputStyle, resize:"vertical" }} />
               </div>
-
               <div>
                 <label style={labelStyle}>Fórmula</label>
-                <input name="formula" value={form.formula||""} onChange={handleChange} placeholder="Ej: (Valor N - Línea base) / Línea base × 100" style={inputStyle} />
+                <input name="formula" value={form.formula||""} onChange={handleChange} style={inputStyle} />
               </div>
-
               <div>
                 <label style={labelStyle}>Unidad de medida</label>
-                <input name="unidad_medida" value={form.unidad_medida||""} onChange={handleChange} placeholder="Porcentaje, Número, Metros..." style={inputStyle} />
+                <input name="unidad_medida" value={form.unidad_medida||""} onChange={handleChange} style={inputStyle} />
               </div>
-
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={labelStyle}>Medios de verificación</label>
                 <input name="medios_verificacion" value={form.medios_verificacion||""} onChange={handleChange} style={inputStyle} />
               </div>
-
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={labelStyle}>Supuestos</label>
                 <input name="supuestos" value={form.supuestos||""} onChange={handleChange} style={inputStyle} />
@@ -176,11 +213,9 @@ export default function FichasTecnicas({ dependencias = [] }) {
             </div>
           </div>
 
-          {/* SECCIÓN 2: Alineación estratégica */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>🎯 Alineación estratégica</p>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
-
               <div style={{ gridColumn:"1/-1" }}>
                 <label style={labelStyle}>Dependencia *</label>
                 <select name="dependency_id" value={form.dependency_id} onChange={handleDependenciaChange} style={inputStyle}>
@@ -188,7 +223,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                   {dependencias.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
-
               {form.dependency_id && (
                 <div style={{ gridColumn:"1/-1" }}>
                   <label style={labelStyle}>Estrategia {cargandoEst && <span style={{ fontWeight:"400", color:"#6b7280", marginLeft:"8px" }}>Cargando...</span>}</label>
@@ -200,7 +234,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                   </select>
                 </div>
               )}
-
               {form.estrategia && (
                 <div style={{ gridColumn:"1/-1", background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:"8px", padding:"14px" }}>
                   <p style={{ fontWeight:"700", fontSize:"12px", color:"#166534", margin:"0 0 10px" }}>✅ Auto-rellenado desde BD</p>
@@ -217,7 +250,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
             </div>
           </div>
 
-          {/* SECCIÓN 3: Clasificación */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>🏷️ Clasificación</p>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:"14px" }}>
@@ -229,7 +261,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
               </div>
               <div>
                 <label style={labelStyle}>Tipo de Evaluación</label>
-                <input name="tipo_evaluacion" value={form.tipo_evaluacion||""} onChange={handleChange} placeholder="Porcentaje" style={inputStyle} />
+                <input name="tipo_evaluacion" value={form.tipo_evaluacion||""} onChange={handleChange} style={inputStyle} />
               </div>
               <div>
                 <label style={labelStyle}>Periodicidad</label>
@@ -254,41 +286,23 @@ export default function FichasTecnicas({ dependencias = [] }) {
             </div>
           </div>
 
-          {/* SECCIÓN 4: Valores numéricos */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>📊 Valores del indicador</p>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"14px", marginBottom:"12px" }}>
-              <div>
-                <label style={labelStyle}>Año base</label>
-                <input name="anio_base" type="number" value={form.anio_base||""} onChange={handleChange} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Valor año base</label>
-                <input name="valor_anio_base" type="number" value={form.valor_anio_base||""} onChange={handleChange} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Valor mínimo</label>
-                <input name="valor_minimo" type="number" value={form.valor_minimo||""} onChange={handleChange} style={inputStyle} />
-              </div>
+              <div><label style={labelStyle}>Año base</label><input name="anio_base" type="number" value={form.anio_base||""} onChange={handleChange} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Valor año base</label><input name="valor_anio_base" type="number" value={form.valor_anio_base||""} onChange={handleChange} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Valor mínimo</label><input name="valor_minimo" type="number" value={form.valor_minimo||""} onChange={handleChange} style={inputStyle} /></div>
             </div>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"12px" }}>
-              {[
-                { name:"valor_inicial",  label:"Valor inicial",  color:"#4682B4" },
-                { name:"avance_anual",   label:"Avance anual",   color:"#808080" },
-                { name:"meta_anual",     label:"Meta anual",     color:"#D4A030" },
-                { name:"meta_trianual",  label:"Meta trianual",  color:"#505050" },
-              ].map(f=>(
+              {[{name:"valor_inicial",label:"Valor inicial",color:"#4682B4"},{name:"avance_anual",label:"Avance anual",color:"#808080"},{name:"meta_anual",label:"Meta anual",color:"#D4A030"},{name:"meta_trianual",label:"Meta trianual",color:"#505050"}].map(f=>(
                 <div key={f.name}>
-                  <label style={{ ...labelStyle, color:f.color }}>
-                    <span style={{ display:"inline-block", width:"10px", height:"10px", background:f.color, borderRadius:"2px", marginRight:"4px" }} />{f.label}
-                  </label>
+                  <label style={{ ...labelStyle, color:f.color }}><span style={{ display:"inline-block", width:"10px", height:"10px", background:f.color, borderRadius:"2px", marginRight:"4px" }} />{f.label}</label>
                   <input name={f.name} type="number" value={form[f.name]||""} onChange={handleChange} style={{ ...inputStyle, fontWeight:"700" }} />
                 </div>
               ))}
             </div>
           </div>
 
-          {/* SECCIÓN 5: Calendarización mensual */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>📅 Calendarización mensual</p>
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"8px" }}>
@@ -297,60 +311,54 @@ export default function FichasTecnicas({ dependencias = [] }) {
                 return (
                   <div key={mes} style={{ background:"white", borderRadius:"6px", padding:"8px", border:"1px solid #e5e7eb" }}>
                     <p style={{ fontSize:"11px", fontWeight:"700", margin:"0 0 5px", textTransform:"capitalize", color:"#374151" }}>{mes}</p>
-                    <input placeholder="Programado" type="number" value={cal[mes]?.programado||""}
-                      onChange={e=>setCalMes(mes,"programado",e.target.value)}
-                      style={{ ...inputStyle, marginBottom:"4px", fontSize:"11px", padding:"4px 6px" }} />
-                    <input placeholder="Real" type="number" value={cal[mes]?.real||""}
-                      onChange={e=>setCalMes(mes,"real",e.target.value)}
-                      style={{ ...inputStyle, fontSize:"11px", padding:"4px 6px" }} />
+                    <input placeholder="Programado" type="number" value={cal[mes]?.programado||""} onChange={e=>setCalMes(mes,"programado",e.target.value)} style={{ ...inputStyle, marginBottom:"4px", fontSize:"11px", padding:"4px 6px" }} />
+                    <input placeholder="Real" type="number" value={cal[mes]?.real||""} onChange={e=>setCalMes(mes,"real",e.target.value)} style={{ ...inputStyle, fontSize:"11px", padding:"4px 6px" }} />
                   </div>
                 )
               })}
             </div>
           </div>
 
-          {/* SECCIÓN 6: Análisis cualitativo */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>📝 Análisis cualitativo</p>
-            <textarea name="analisis_cualitativo" value={form.analisis_cualitativo||""} onChange={handleChange} rows={5}
-              placeholder="Describe el análisis cualitativo del indicador..." style={{ ...inputStyle, resize:"vertical" }} />
+            <textarea name="analisis_cualitativo" value={form.analisis_cualitativo||""} onChange={handleChange} rows={5} style={{ ...inputStyle, resize:"vertical" }} />
           </div>
 
-          {/* SECCIÓN 7: Responsable */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>👤 Unidad administrativa</p>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"14px" }}>
-              <div>
-                <label style={labelStyle}>Responsable</label>
-                <input name="responsable" value={form.responsable||""} onChange={handleChange} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Correo electrónico</label>
-                <input name="correo_electronico" value={form.correo_electronico||""} onChange={handleChange} style={inputStyle} />
-              </div>
-              <div>
-                <label style={labelStyle}>Teléfono y Ext.</label>
-                <input name="telefono" value={form.telefono||""} onChange={handleChange} style={inputStyle} />
-              </div>
+              <div><label style={labelStyle}>Responsable</label><input name="responsable" value={form.responsable||""} onChange={handleChange} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Correo electrónico</label><input name="correo_electronico" value={form.correo_electronico||""} onChange={handleChange} style={inputStyle} /></div>
+              <div><label style={labelStyle}>Teléfono y Ext.</label><input name="telefono" value={form.telefono||""} onChange={handleChange} style={inputStyle} /></div>
             </div>
           </div>
 
-          {/* SECCIÓN 8: Criterios CREAM */}
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>✅ Criterios CREAM</p>
             <div style={{ display:"flex", gap:"10px", flexWrap:"wrap" }}>
-              {[
-                ["criterio_claro","Claro"],["criterio_relevante","Relevante"],
-                ["criterio_economico","Económico"],["criterio_monitoreable","Monitoreable"],
-                ["criterio_adecuado","Adecuado"],["criterio_aportacion","Aportación marginal"]
-              ].map(([campo,label])=>(
-                <label key={campo} style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"13px", background: form[campo]!==false?"#f0fdf4":"#fff1f2", padding:"7px 14px", borderRadius:"6px", border:`1px solid ${form[campo]!==false?"#bbf7d0":"#fecaca"}`, cursor:"pointer" }}>
+              {[["criterio_claro","Claro"],["criterio_relevante","Relevante"],["criterio_economico","Económico"],["criterio_monitoreable","Monitoreable"],["criterio_adecuado","Adecuado"],["criterio_aportacion","Aportación marginal"]].map(([campo,label])=>(
+                <label key={campo} style={{ display:"flex", alignItems:"center", gap:"6px", fontSize:"13px", background:form[campo]!==false?"#f0fdf4":"#fff1f2", padding:"7px 14px", borderRadius:"6px", border:`1px solid ${form[campo]!==false?"#bbf7d0":"#fecaca"}`, cursor:"pointer" }}>
                   <input type="checkbox" checked={form[campo]!==false} onChange={e=>setForm(p=>({...p,[campo]:e.target.checked}))} />
-                  <span style={{ fontWeight:"600", color: form[campo]!==false?"#166534":"#991b1b" }}>{label}</span>
+                  <span style={{ fontWeight:"600", color:form[campo]!==false?"#166534":"#991b1b" }}>{label}</span>
                 </label>
               ))}
             </div>
           </div>
+
+          {/* Comentario del cambio (solo al editar) */}
+          {editando && (
+            <div style={{ ...sectionStyle, background:"#fffbeb", border:"1px solid #fcd34d" }}>
+              <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 8px" }}>📝 Motivo de la actualización (opcional)</p>
+              <textarea
+                value={comentarioCambio}
+                onChange={e=>setComentarioCambio(e.target.value)}
+                rows={2}
+                placeholder="Ej: Actualización de valores del tercer trimestre 2025..."
+                style={{ ...inputStyle, resize:"vertical" }}
+              />
+              <p style={{ fontSize:"11px", color:"#92400e", margin:"6px 0 0" }}>Este comentario quedará registrado en el historial de cambios.</p>
+            </div>
+          )}
 
           <div style={{ display:"flex", gap:"12px", justifyContent:"flex-end" }}>
             <button onClick={()=>{setVista("lista");setEditando(null);setForm(FORM_VACIO)}} style={{ padding:"10px 20px", borderRadius:"8px", border:"1px solid #d1d5db", cursor:"pointer", background:"white", fontSize:"13px", color:"#000" }}>Cancelar</button>
@@ -397,16 +405,12 @@ export default function FichasTecnicas({ dependencias = [] }) {
                     </div>
                     <div style={{ display:"flex", gap:"6px", marginLeft:"8px", flexShrink:0 }}>
                       <button onClick={e=>{e.stopPropagation();abrirEditar(f)}} style={{ background:"#dbeafe", color:"#1e40af", border:"none", borderRadius:"4px", padding:"4px 8px", cursor:"pointer", fontSize:"11px", fontWeight:"600" }}>✏️</button>
+                      <button onClick={e=>{e.stopPropagation();cargarHistorial(f.id)}} style={{ background:"#f3e8ff", color:"#7c3aed", border:"none", borderRadius:"4px", padding:"4px 8px", cursor:"pointer", fontSize:"11px", fontWeight:"600" }} title="Ver historial">🕘</button>
                       <button onClick={e=>{e.stopPropagation();handleEliminar(f.id)}} style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:"4px", padding:"4px 8px", cursor:"pointer", fontSize:"11px" }}>🗑️</button>
                     </div>
                   </div>
                   <div style={{ display:"flex", gap:"12px", marginTop:"8px" }}>
-                    {[
-                      {label:"Ini",  value:f.valor_inicial,  color:"#4682B4"},
-                      {label:"Ava",  value:f.avance_anual,   color:"#808080"},
-                      {label:"Meta", value:f.meta_anual,     color:"#D4A030"},
-                      {label:"Tri",  value:f.meta_trianual,  color:"#505050"},
-                    ].map((d,i)=>(
+                    {[{label:"Ini",value:f.valor_inicial,color:"#4682B4"},{label:"Ava",value:f.avance_anual,color:"#808080"},{label:"Meta",value:f.meta_anual,color:"#D4A030"},{label:"Tri",value:f.meta_trianual,color:"#505050"}].map((d,i)=>(
                       <div key={i} style={{ textAlign:"center" }}>
                         <div style={{ fontSize:"13px", fontWeight:"700", color:d.color }}>{Number(d.value||0)}</div>
                         <div style={{ fontSize:"9px", color:"#9ca3af" }}>{d.label}</div>
@@ -420,7 +424,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
             {fichaSel && (
               <div style={{ background:"white", borderRadius:"12px", padding:"20px", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", border:"1px solid #e5e7eb", alignSelf:"start", position:"sticky", top:"20px", maxHeight:"90vh", overflowY:"auto" }}>
-
                 <div style={{ background:"#dc2626", margin:"-20px -20px 16px -20px", padding:"12px 20px", borderRadius:"12px 12px 0 0" }}>
                   <p style={{ color:"white", fontWeight:"700", fontSize:"13px", margin:"0 0 2px" }}>SISTEMA DE PLANEACIÓN MUNICIPAL</p>
                   <p style={{ color:"rgba(255,255,255,0.8)", fontSize:"11px", margin:0 }}>Indicadores del PMD 2024-2027</p>
@@ -476,21 +479,13 @@ export default function FichasTecnicas({ dependencias = [] }) {
                   </tbody>
                 </table>
 
-                {/* Datos adicionales */}
-                {[
-                  ["Dependencia",fichaSel.dependencia_nombre],["Unidad de medida",fichaSel.unidad_medida],
-                  ["Tipo evaluación",fichaSel.tipo_evaluacion],["Periodicidad",fichaSel.periodicidad],
-                  ["Tipo indicador",fichaSel.tipo_indicador],["Responsable",fichaSel.responsable],
-                  ["Correo",fichaSel.correo_electronico],["Teléfono",fichaSel.telefono],
-                  ["Medios de verificación",fichaSel.medios_verificacion],["Supuestos",fichaSel.supuestos],
-                ].filter(([,v])=>v).map(([label,val])=>(
+                {[["Dependencia",fichaSel.dependencia_nombre],["Unidad de medida",fichaSel.unidad_medida],["Tipo evaluación",fichaSel.tipo_evaluacion],["Periodicidad",fichaSel.periodicidad],["Tipo indicador",fichaSel.tipo_indicador],["Responsable",fichaSel.responsable],["Correo",fichaSel.correo_electronico],["Teléfono",fichaSel.telefono],["Medios de verificación",fichaSel.medios_verificacion],["Supuestos",fichaSel.supuestos]].filter(([,v])=>v).map(([label,val])=>(
                   <div key={label} style={{ display:"flex", gap:"8px", marginBottom:"3px", fontSize:"11px" }}>
                     <span style={{ fontWeight:"700", color:"#374151", minWidth:"130px", flexShrink:0 }}>{label}:</span>
                     <span style={{ color:"#4b5563" }}>{val}</span>
                   </div>
                 ))}
 
-                {/* CREAM */}
                 <div style={{ marginTop:"12px", background:"#f0fdf4", borderRadius:"6px", padding:"8px 12px" }}>
                   <p style={{ fontWeight:"700", fontSize:"11px", color:"#166534", margin:"0 0 6px" }}>Criterios CREAM</p>
                   <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
@@ -505,11 +500,213 @@ export default function FichasTecnicas({ dependencias = [] }) {
                 <div style={{ display:"flex", gap:"8px", marginTop:"16px" }}>
                   <button onClick={()=>exportarFichaPDF(fichaSel)} style={{ flex:1, background:"#dc2626", color:"white", border:"none", borderRadius:"8px", padding:"10px", cursor:"pointer", fontWeight:"600", fontSize:"12px" }}>📄 PDF</button>
                   <button onClick={()=>exportarFichaExcel(fichaSel)} style={{ flex:1, background:"#16a34a", color:"white", border:"none", borderRadius:"8px", padding:"10px", cursor:"pointer", fontWeight:"600", fontSize:"12px" }}>📊 Excel</button>
+                  <button onClick={()=>cargarHistorial(fichaSel.id)} style={{ flex:1, background:"#7c3aed", color:"white", border:"none", borderRadius:"8px", padding:"10px", cursor:"pointer", fontWeight:"600", fontSize:"12px" }}>🕘 Historial</button>
                 </div>
               </div>
             )}
           </div>
         </>
+      )}
+
+      {/* ══════════════════════════════════════════
+          MODAL HISTORIAL
+      ══════════════════════════════════════════ */}
+      {modalHistorial && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+          <div style={{ background:"white", borderRadius:"16px", width:"100%", maxWidth:"860px", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
+
+            {/* Header del modal */}
+            <div style={{ padding:"20px 24px", borderBottom:"1px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
+              <div>
+                <h3 style={{ margin:"0 0 4px", color:"#1e293b" }}>🕘 Historial de cambios</h3>
+                <p style={{ margin:0, fontSize:"12px", color:"#6b7280" }}>
+                  {fichaSel?.nombre_indicador} · {historial.length} versión{historial.length!==1?"es":""} registrada{historial.length!==1?"s":""}
+                </p>
+              </div>
+              <button onClick={()=>{setModalHistorial(false);setVersionExpandida(null);setVersionComparar(null)}}
+                style={{ background:"#f3f4f6", border:"none", borderRadius:"8px", padding:"8px 16px", cursor:"pointer", fontWeight:"600", color:"#374151" }}>
+                ✕ Cerrar
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div style={{ overflowY:"auto", padding:"20px 24px", flex:1 }}>
+
+              {cargandoHist && (
+                <div style={{ textAlign:"center", padding:"40px", color:"#6b7280" }}>
+                  Cargando historial...
+                </div>
+              )}
+
+              {!cargandoHist && historial.length===0 && (
+                <div style={{ textAlign:"center", padding:"60px", color:"#9ca3af" }}>
+                  <p style={{ fontSize:"48px", margin:"0 0 12px" }}>📋</p>
+                  <p style={{ fontWeight:"600" }}>Sin historial aún</p>
+                  <p style={{ fontSize:"13px" }}>El historial se genera automáticamente cada vez que actualices esta ficha.</p>
+                </div>
+              )}
+
+              {!cargandoHist && historial.length > 0 && (
+                <>
+                  {/* Selector de comparación */}
+                  <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:"8px", padding:"12px 16px", marginBottom:"20px", display:"flex", gap:"12px", alignItems:"center", flexWrap:"wrap" }}>
+                    <span style={{ fontSize:"13px", fontWeight:"600", color:"#0369a1" }}>🔍 Comparar versión:</span>
+                    <select value={versionComparar??""} onChange={e=>setVersionComparar(e.target.value===""?null:Number(e.target.value))}
+                      style={{ padding:"6px 12px", borderRadius:"6px", border:"1px solid #bae6fd", fontSize:"13px", background:"white" }}>
+                      <option value="">Selecciona una versión para comparar con la actual</option>
+                      {historial.map(h=>(
+                        <option key={h.id} value={h.version}>
+                          Versión {h.version} — {new Date(h.fecha_modificacion).toLocaleString("es-MX",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+                        </option>
+                      ))}
+                    </select>
+                    {versionComparar && <button onClick={()=>setVersionComparar(null)} style={{ background:"none", border:"none", color:"#0369a1", cursor:"pointer", fontSize:"12px" }}>✕ Quitar comparación</button>}
+                  </div>
+
+                  {/* Panel de comparación */}
+                  {versionComparar && (() => {
+                    const verData = historial.find(h=>h.version===versionComparar)
+                    const diffs = verData ? getDiferencias(verData, fichaSel) : []
+                    return (
+                      <div style={{ background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:"8px", padding:"16px", marginBottom:"20px" }}>
+                        <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 12px" }}>
+                          ⚡ Diferencias entre versión {versionComparar} y el estado actual
+                          {diffs.length===0 && <span style={{ fontWeight:"400", color:"#6b7280", marginLeft:"8px" }}>(sin diferencias detectadas)</span>}
+                        </p>
+                        {diffs.length>0 && (
+                          <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                            {diffs.map(([campo,label])=>{
+                              const antes = String(verData[campo]||"-")
+                              const despues = String(fichaSel?.[campo]||"-")
+                              return (
+                                <div key={campo} style={{ display:"grid", gridTemplateColumns:"120px 1fr 1fr", gap:"8px", fontSize:"12px", alignItems:"start" }}>
+                                  <span style={{ fontWeight:"700", color:"#374151", paddingTop:"4px" }}>{label}</span>
+                                  <div style={{ background:"#fee2e2", borderRadius:"4px", padding:"4px 8px" }}>
+                                    <p style={{ fontSize:"10px", color:"#991b1b", margin:"0 0 2px", fontWeight:"700" }}>Versión {versionComparar}</p>
+                                    <p style={{ margin:0, color:"#7f1d1d" }}>{antes.length>100?antes.substring(0,100)+"...":antes}</p>
+                                  </div>
+                                  <div style={{ background:"#d1fae5", borderRadius:"4px", padding:"4px 8px" }}>
+                                    <p style={{ fontSize:"10px", color:"#065f46", margin:"0 0 2px", fontWeight:"700" }}>Actual</p>
+                                    <p style={{ margin:0, color:"#064e3b" }}>{despues.length>100?despues.substring(0,100)+"...":despues}</p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Lista de versiones */}
+                  <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
+                    {historial.map((h, idx) => {
+                      const expandida = versionExpandida===h.id
+                      const esComparada = versionComparar===h.version
+                      const diffsConSiguiente = idx < historial.length-1
+                        ? getDiferencias(h, historial[idx+1])
+                        : []
+
+                      return (
+                        <div key={h.id} style={{ border:`2px solid ${esComparada?"#fcd34d":expandida?"#7c3aed":"#e5e7eb"}`, borderRadius:"10px", overflow:"hidden", transition:"all 0.15s" }}>
+
+                          {/* Header de versión */}
+                          <div
+                            onClick={()=>setVersionExpandida(expandida?null:h.id)}
+                            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", background:esComparada?"#fffbeb":expandida?"#f5f3ff":"white", cursor:"pointer" }}
+                          >
+                            <div style={{ display:"flex", gap:"12px", alignItems:"center" }}>
+                              <div style={{ background:esComparada?"#f59e0b":expandida?"#7c3aed":"#6b7280", color:"white", borderRadius:"999px", padding:"2px 10px", fontSize:"12px", fontWeight:"700" }}>
+                                v{h.version}
+                              </div>
+                              <div>
+                                <p style={{ margin:"0 0 2px", fontSize:"13px", fontWeight:"600", color:"#1e293b" }}>
+                                  {new Date(h.fecha_modificacion).toLocaleString("es-MX",{
+                                    day:"2-digit", month:"long", year:"numeric",
+                                    hour:"2-digit", minute:"2-digit"
+                                  })}
+                                </p>
+                                {h.comentario_cambio && (
+                                  <p style={{ margin:0, fontSize:"12px", color:"#6b7280" }}>💬 {h.comentario_cambio}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
+                              {diffsConSiguiente.length>0 && (
+                                <span style={{ background:"#fee2e2", color:"#991b1b", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:"600" }}>
+                                  {diffsConSiguiente.length} cambio{diffsConSiguiente.length!==1?"s":""}
+                                </span>
+                              )}
+                              <span style={{ color:"#7c3aed", fontSize:"12px" }}>{expandida?"▲":"▼"}</span>
+                            </div>
+                          </div>
+
+                          {/* Detalle expandido */}
+                          {expandida && (
+                            <div style={{ padding:"16px", borderTop:"1px solid #e5e7eb", background:"#fafafa" }}>
+
+                              {/* Valores clave */}
+                              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"8px", marginBottom:"16px" }}>
+                                {[["Valor inicial",h.valor_inicial,"#4682B4"],["Avance anual",h.avance_anual,"#808080"],["Meta anual",h.meta_anual,"#D4A030"],["Meta trianual",h.meta_trianual,"#505050"]].map(([label,val,color])=>(
+                                  <div key={label} style={{ background:"white", borderRadius:"6px", padding:"8px 10px", border:"1px solid #e5e7eb", textAlign:"center" }}>
+                                    <p style={{ fontSize:"9px", color:"#6b7280", margin:"0 0 2px" }}>{label}</p>
+                                    <p style={{ fontSize:"16px", fontWeight:"700", color, margin:0 }}>{Number(val||0)}</p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Campos de texto */}
+                              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
+                                {CAMPOS_COMPARAR.filter(([campo])=>h[campo]).map(([campo,label])=>(
+                                  <div key={campo} style={{ fontSize:"11px" }}>
+                                    <span style={{ fontWeight:"700", color:"#374151" }}>{label}: </span>
+                                    <span style={{ color:"#4b5563" }}>
+                                      {String(h[campo]).length>80 ? String(h[campo]).substring(0,80)+"..." : String(h[campo])}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Cambios respecto a la versión anterior */}
+                              {diffsConSiguiente.length>0 && (
+                                <div style={{ marginTop:"12px", background:"#fff7ed", borderRadius:"6px", padding:"10px 12px" }}>
+                                  <p style={{ fontWeight:"700", fontSize:"11px", color:"#92400e", margin:"0 0 8px" }}>
+                                    ⚡ Campos modificados respecto a la versión anterior (v{historial[idx+1]?.version}):
+                                  </p>
+                                  <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
+                                    {diffsConSiguiente.map(([,label])=>(
+                                      <span key={label} style={{ background:"#fed7aa", color:"#9a3412", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:"600" }}>{label}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Botón exportar PDF de esta versión */}
+                              <div style={{ marginTop:"12px", display:"flex", gap:"8px" }}>
+                                <button
+                                  onClick={()=>{
+                                    const verConNombre = {...h, dependencia_nombre:fichaSel?.dependencia_nombre, nombre_indicador:h.nombre_indicador||fichaSel?.nombre_indicador}
+                                    exportarFichaPDF(verConNombre)
+                                  }}
+                                  style={{ padding:"6px 14px", background:"#7c3aed", color:"white", border:"none", borderRadius:"6px", cursor:"pointer", fontSize:"11px", fontWeight:"600" }}
+                                >
+                                  📄 Exportar PDF de esta versión
+                                </button>
+                                <span style={{ fontSize:"11px", color:"#6b7280", alignSelf:"center" }}>
+                                  Año {h.anio} · {h.tipo_indicador||"-"}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
