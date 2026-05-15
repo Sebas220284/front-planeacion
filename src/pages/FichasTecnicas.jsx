@@ -19,7 +19,6 @@ const FORM_VACIO = {
   calendarizacion:{}, dependency_id:"", strategy_id:""
 }
 
-// Campos que se comparan para detectar cambios
 const CAMPOS_COMPARAR = [
   ["nombre_indicador","Nombre"],["definicion","Definición"],["proposito","Propósito"],
   ["formula","Fórmula"],["unidad_medida","Unidad de medida"],["anio","Año"],
@@ -45,7 +44,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
   const [cargandoEst, setCargandoEst] = useState(false)
   const [comentarioCambio, setComentarioCambio] = useState("")
 
-  // Estados de historial
   const [historial, setHistorial] = useState([])
   const [cargandoHist, setCargandoHist] = useState(false)
   const [modalHistorial, setModalHistorial] = useState(false)
@@ -147,7 +145,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
     { name:"meta trianual", value:Number(fichaSel.meta_trianual||0), fill:"#505050" },
   ] : []
 
-  // Detecta qué campos cambiaron entre versión y versión actual
   const getDiferencias = (versionAnterior, actual) => {
     return CAMPOS_COMPARAR.filter(([campo]) => {
       const a = String(versionAnterior[campo]||"")
@@ -174,7 +171,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
         </button>
       </div>
 
-      {/* ── FORMULARIO ── */}
       {vista==="form" && (
         <div style={{ background:"white", borderRadius:"12px", padding:"24px", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", maxWidth:"860px", margin:"0 auto" }}>
           <h3 style={{ margin:"0 0 20px", color:"#1e293b" }}>{editando?"✏️ Editar ficha":"✨ Nueva ficha técnica"}</h3>
@@ -345,7 +341,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
             </div>
           </div>
 
-          {/* Comentario del cambio (solo al editar) */}
           {editando && (
             <div style={{ ...sectionStyle, background:"#fffbeb", border:"1px solid #fcd34d" }}>
               <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 8px" }}>📝 Motivo de la actualización (opcional)</p>
@@ -369,7 +364,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
         </div>
       )}
 
-      {/* ── LISTA ── */}
       {vista==="lista" && (
         <>
           <div style={{ display:"flex", gap:"10px", marginBottom:"20px", flexWrap:"wrap" }}>
@@ -508,14 +502,11 @@ export default function FichasTecnicas({ dependencias = [] }) {
         </>
       )}
 
-      {/* ══════════════════════════════════════════
-          MODAL HISTORIAL
-      ══════════════════════════════════════════ */}
+        HISTORIAL
       {modalHistorial && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
           <div style={{ background:"white", borderRadius:"16px", width:"100%", maxWidth:"860px", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
 
-            {/* Header del modal */}
             <div style={{ padding:"20px 24px", borderBottom:"1px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
               <div>
                 <h3 style={{ margin:"0 0 4px", color:"#1e293b" }}>🕘 Historial de cambios</h3>
@@ -529,7 +520,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
               </button>
             </div>
 
-            {/* Contenido */}
             <div style={{ overflowY:"auto", padding:"20px 24px", flex:1 }}>
 
               {cargandoHist && (
@@ -548,7 +538,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
               {!cargandoHist && historial.length > 0 && (
                 <>
-                  {/* Selector de comparación */}
                   <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:"8px", padding:"12px 16px", marginBottom:"20px", display:"flex", gap:"12px", alignItems:"center", flexWrap:"wrap" }}>
                     <span style={{ fontSize:"13px", fontWeight:"600", color:"#0369a1" }}>🔍 Comparar versión:</span>
                     <select value={versionComparar??""} onChange={e=>setVersionComparar(e.target.value===""?null:Number(e.target.value))}
@@ -563,7 +552,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                     {versionComparar && <button onClick={()=>setVersionComparar(null)} style={{ background:"none", border:"none", color:"#0369a1", cursor:"pointer", fontSize:"12px" }}>✕ Quitar comparación</button>}
                   </div>
 
-                  {/* Panel de comparación */}
                   {versionComparar && (() => {
                     const verData = historial.find(h=>h.version===versionComparar)
                     const diffs = verData ? getDiferencias(verData, fichaSel) : []
@@ -598,7 +586,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                     )
                   })()}
 
-                  {/* Lista de versiones */}
                   <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
                     {historial.map((h, idx) => {
                       const expandida = versionExpandida===h.id
@@ -610,7 +597,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                       return (
                         <div key={h.id} style={{ border:`2px solid ${esComparada?"#fcd34d":expandida?"#7c3aed":"#e5e7eb"}`, borderRadius:"10px", overflow:"hidden", transition:"all 0.15s" }}>
 
-                          {/* Header de versión */}
                           <div
                             onClick={()=>setVersionExpandida(expandida?null:h.id)}
                             style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", background:esComparada?"#fffbeb":expandida?"#f5f3ff":"white", cursor:"pointer" }}
@@ -641,11 +627,9 @@ export default function FichasTecnicas({ dependencias = [] }) {
                             </div>
                           </div>
 
-                          {/* Detalle expandido */}
                           {expandida && (
                             <div style={{ padding:"16px", borderTop:"1px solid #e5e7eb", background:"#fafafa" }}>
 
-                              {/* Valores clave */}
                               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"8px", marginBottom:"16px" }}>
                                 {[["Valor inicial",h.valor_inicial,"#4682B4"],["Avance anual",h.avance_anual,"#808080"],["Meta anual",h.meta_anual,"#D4A030"],["Meta trianual",h.meta_trianual,"#505050"]].map(([label,val,color])=>(
                                   <div key={label} style={{ background:"white", borderRadius:"6px", padding:"8px 10px", border:"1px solid #e5e7eb", textAlign:"center" }}>
@@ -655,7 +639,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                                 ))}
                               </div>
 
-                              {/* Campos de texto */}
                               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"8px" }}>
                                 {CAMPOS_COMPARAR.filter(([campo])=>h[campo]).map(([campo,label])=>(
                                   <div key={campo} style={{ fontSize:"11px" }}>
@@ -667,7 +650,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                                 ))}
                               </div>
 
-                              {/* Cambios respecto a la versión anterior */}
                               {diffsConSiguiente.length>0 && (
                                 <div style={{ marginTop:"12px", background:"#fff7ed", borderRadius:"6px", padding:"10px 12px" }}>
                                   <p style={{ fontWeight:"700", fontSize:"11px", color:"#92400e", margin:"0 0 8px" }}>
@@ -681,7 +663,6 @@ export default function FichasTecnicas({ dependencias = [] }) {
                                 </div>
                               )}
 
-                              {/* Botón exportar PDF de esta versión */}
                               <div style={{ marginTop:"12px", display:"flex", gap:"8px" }}>
                                 <button
                                   onClick={()=>{
