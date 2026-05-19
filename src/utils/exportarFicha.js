@@ -21,7 +21,7 @@ const dibujarEncabezado = (doc, W) => {
 
   // Logo escudo (izquierda)
   if (LOGO_ESCUDO_B64) {
-    doc.addImage(LOGO_ESCUDO_B64, "PNG", 4, 2, 85, 23)
+    doc.addImage(LOGO_ESCUDO_B64, "PNG", 15, 2, 120, 20)
   } else {
     doc.setFillColor(245,242,235); doc.circle(13, 13, 10, "F")
     doc.setDrawColor(140,110,0); doc.setLineWidth(0.5); doc.circle(13, 13, 10, "S")
@@ -32,10 +32,7 @@ const dibujarEncabezado = (doc, W) => {
     doc.setLineWidth(0.2)
   }
 
-  // Separador vertical dorado
-
-  // "TUXTLA GUTIÉRREZ"
-
+  
 
   // Badge oscuro derecha
   doc.setFillColor(85,85,85)
@@ -53,24 +50,15 @@ const dibujarEncabezado = (doc, W) => {
 // ── Pie de página (se repite en ambas páginas) ──
 const dibujarPie = (doc, W, H, nPag, totalPag) => {
   const py = H - 20
-  doc.setDrawColor(200,200,200); doc.line(8, py, W-8, py)
 
   if (LOGO_PIE_B64) {
     // Si tienes la imagen del logo pie, se centra
-    doc.addImage(LOGO_PIE_B64, "PNG", W/2-28, py+2, 56, 14)
+    doc.addImage(LOGO_PIE_B64, "PNG", W/1-45, py+10, 30, 10)
   } else {
-    // Simulación del logo "¡Qué viva Tuxtla!"
-    doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(180,140,0)
-    doc.text("¡Qué viva", W/2-22, py+9)
-    doc.setFontSize(14); doc.setTextColor(0,0,0)
-    doc.text("Tuxtla!", W/2, py+9)
-    // Punto decorativo naranja simulando el conejo
-    doc.setFontSize(10); doc.setTextColor(200,100,0)
-    doc.text("●", W/2+19, py+7)
+   console.log("hello word")
   }
 
   doc.setFont("helvetica","normal"); doc.setFontSize(6.5); doc.setTextColor(160,160,160)
-  doc.text("Ficha Técnica de Indicadores", 10, py+11)
   doc.text(`Página ${nPag} de ${totalPag}`, W-10, py+11, {align:"right"})
 }
 
@@ -90,7 +78,6 @@ export const exportarFichaPDF = (f) => {
   // Barra dorada "Ficha Técnica de Indicadores"
   doc.setFillColor(180,140,0); doc.rect(M, y, W-M*2, 5.5, "F")
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(8)
-  doc.text("Ficha Técnica de Indicadores", M+2, y+3.8)
   y += 6.5
 
   // ─ Helper fila label | valor ─
@@ -565,3 +552,7 @@ export const exportarFichaExcel = async (f) => {
   a.href=url; a.download=`FichaTecnica_${(f.nombre_indicador||"ficha").replace(/ /g,"_")}_${f.anio||""}.xlsx`; a.click()
   URL.revokeObjectURL(url)
 }
+
+
+
+

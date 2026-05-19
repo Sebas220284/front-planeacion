@@ -31,6 +31,22 @@ const CAMPOS_COMPARAR = [
   ["responsable","Responsable"],["correo_electronico","Correo"],["telefono","Teléfono"],
 ]
 
+const UserBadge = ({ nombre, email, label, color = "#2563eb" }) => {
+  if (!nombre && !email) return null
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:"8px", background:`${color}10`, border:`1px solid ${color}30`, borderRadius:"8px", padding:"6px 10px" }}>
+      <div style={{ width:"28px", height:"28px", borderRadius:"50%", background:color, display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"12px", flexShrink:0 }}>
+        {(nombre||email||"?")[0].toUpperCase()}
+      </div>
+      <div>
+        <p style={{ margin:0, fontSize:"11px", color:"#6b7280" }}>{label}</p>
+        <p style={{ margin:0, fontSize:"12px", fontWeight:"700", color:"#1e293b" }}>{nombre||"-"}</p>
+        {email && <p style={{ margin:0, fontSize:"10px", color:"#6b7280" }}>{email}</p>}
+      </div>
+    </div>
+  )
+}
+
 export default function FichasTecnicas({ dependencias = [] }) {
   const [vista, setVista] = useState("lista")
   const [fichas, setFichas] = useState([])
@@ -43,12 +59,21 @@ export default function FichasTecnicas({ dependencias = [] }) {
   const [estrategiasDep, setEstrategiasDep] = useState([])
   const [cargandoEst, setCargandoEst] = useState(false)
   const [comentarioCambio, setComentarioCambio] = useState("")
-
   const [historial, setHistorial] = useState([])
   const [cargandoHist, setCargandoHist] = useState(false)
   const [modalHistorial, setModalHistorial] = useState(false)
   const [versionExpandida, setVersionExpandida] = useState(null)
   const [versionComparar, setVersionComparar] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
+
+  // Obtiene usuario actual del localStorage/auth
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (!token) return
+    fetch("http://localhost:3001/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(r => r.json()).then(data => setCurrentUser(data)).catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch("http://localhost:3001/api/fichas/lista")
@@ -57,10 +82,10 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
   const cargarHistorial = async (fichaId) => {
     setCargandoHist(true)
+    setHistorial([])
     try {
       const res = await fetch(`http://localhost:3001/api/fichas/historial/${fichaId}`)
-      const data = await res.json()
-      setHistorial(data)
+      setHistorial(await res.json())
     } catch(e) { console.error(e) }
     setCargandoHist(false)
     setModalHistorial(true)
@@ -103,9 +128,20 @@ export default function FichasTecnicas({ dependencias = [] }) {
     if (!form.nombre_indicador || !form.dependency_id) { alert("Nombre e indicador y dependencia son obligatorios"); return }
     setEnviando(true)
     try {
-      const url = editando ? `http://localhost:3001/api/fichas/actualizar/${editando}` : "http://localhost:3001/api/fichas/crear"
-      const payload = { ...form, comentario_cambio: comentarioCambio }
-      const res = await fetch(url, { method: editando?"PUT":"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) })
+      const url = editando
+        ? `http://localhost:3001/api/fichas/actualizar/${editando}`
+        : "http://localhost:3001/api/fichas/crear"
+      const payload = {
+        ...form,
+        comentario_cambio: comentarioCambio,
+        creado_por: editando ? form.creado_por : (currentUser?.id || null),
+        modificado_por: currentUser?.id || null,
+      }
+      const res = await fetch(url, {
+        method: editando?"PUT":"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(payload)
+      })
       const data = await res.json()
       if (editando) setFichas(prev => prev.map(f => f.id===editando ? data : f))
       else setFichas(prev => [data, ...prev])
@@ -145,13 +181,10 @@ export default function FichasTecnicas({ dependencias = [] }) {
     { name:"meta trianual", value:Number(fichaSel.meta_trianual||0), fill:"#505050" },
   ] : []
 
-  const getDiferencias = (versionAnterior, actual) => {
-    return CAMPOS_COMPARAR.filter(([campo]) => {
-      const a = String(versionAnterior[campo]||"")
-      const b = String(actual?.[campo]||"")
-      return a !== b
-    })
-  }
+  const getDiferencias = (anterior, actual) =>
+    CAMPOS_COMPARAR.filter(([campo]) => String(anterior[campo]||"") !== String(actual?.[campo]||""))
+
+  const fmtFecha = (f) => f ? new Date(f).toLocaleString("es-MX",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "-"
 
   const inputStyle = { width:"100%", padding:"8px 10px", borderRadius:"6px", border:"1px solid #d1d5db", fontSize:"13px", boxSizing:"border-box", color:"#000", background:"#fff" }
   const labelStyle = { display:"block", fontWeight:"600", fontSize:"12px", marginBottom:"4px", color:"#374151" }
@@ -165,15 +198,37 @@ export default function FichasTecnicas({ dependencias = [] }) {
           <h2 style={{ margin:"0 0 4px", color:"#1e293b" }}>📋 Fichas Técnicas de Indicadores</h2>
           <p style={{ margin:0, color:"#6b7280", fontSize:"13px" }}>PMD 2024-2027</p>
         </div>
-        <button onClick={() => { setForm(FORM_VACIO); setEditando(null); setComentarioCambio(""); setVista(vista==="form"?"lista":"form") }}
-          style={{ background:vista==="form"?"#6b7280":"#dc2626", color:"white", border:"none", borderRadius:"8px", padding:"10px 20px", fontSize:"13px", fontWeight:"600", cursor:"pointer" }}>
-          {vista==="form"?"← Volver":"+ Nueva ficha"}
-        </button>
+        <div style={{ display:"flex", gap:"10px", alignItems:"center" }}>
+          {currentUser && (
+            <div style={{ display:"flex", alignItems:"center", gap:"8px", background:"white", border:"1px solid #e5e7eb", borderRadius:"8px", padding:"6px 12px" }}>
+              <div style={{ width:"28px", height:"28px", borderRadius:"50%", background:"#2563eb", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"12px" }}>
+                {(currentUser.name||currentUser.nombre||"U")[0].toUpperCase()}
+              </div>
+              <div>
+                <p style={{ margin:0, fontSize:"12px", fontWeight:"600", color:"#1e293b" }}>{currentUser.name||currentUser.nombre}</p>
+                <p style={{ margin:0, fontSize:"10px", color:"#6b7280" }}>{currentUser.email}</p>
+              </div>
+            </div>
+          )}
+          <button onClick={() => { setForm(FORM_VACIO); setEditando(null); setComentarioCambio(""); setVista(vista==="form"?"lista":"form") }}
+            style={{ background:vista==="form"?"#6b7280":"#dc2626", color:"white", border:"none", borderRadius:"8px", padding:"10px 20px", fontSize:"13px", fontWeight:"600", cursor:"pointer" }}>
+            {vista==="form"?"← Volver":"+ Nueva ficha"}
+          </button>
+        </div>
       </div>
 
       {vista==="form" && (
         <div style={{ background:"white", borderRadius:"12px", padding:"24px", boxShadow:"0 1px 4px rgba(0,0,0,0.08)", maxWidth:"860px", margin:"0 auto" }}>
-          <h3 style={{ margin:"0 0 20px", color:"#1e293b" }}>{editando?"✏️ Editar ficha":"✨ Nueva ficha técnica"}</h3>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"20px" }}>
+            <h3 style={{ margin:0, color:"#1e293b" }}>{editando?"✏️ Editar ficha":"✨ Nueva ficha técnica"}</h3>
+            {currentUser && (
+              <div style={{ display:"flex", alignItems:"center", gap:"6px", background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:"6px", padding:"6px 10px" }}>
+                <span style={{ fontSize:"11px", color:"#0369a1" }}>{editando?"Editando como:":"Creando como:"}</span>
+                <span style={{ fontSize:"12px", fontWeight:"700", color:"#0c4a6e" }}>{currentUser.name||currentUser.nombre}</span>
+                <span style={{ fontSize:"10px", color:"#0369a1" }}>({currentUser.email})</span>
+              </div>
+            )}
+          </div>
 
           <div style={sectionStyle}>
             <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>📌 Identificación del indicador</p>
@@ -344,13 +399,9 @@ export default function FichasTecnicas({ dependencias = [] }) {
           {editando && (
             <div style={{ ...sectionStyle, background:"#fffbeb", border:"1px solid #fcd34d" }}>
               <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 8px" }}>📝 Motivo de la actualización (opcional)</p>
-              <textarea
-                value={comentarioCambio}
-                onChange={e=>setComentarioCambio(e.target.value)}
-                rows={2}
+              <textarea value={comentarioCambio} onChange={e=>setComentarioCambio(e.target.value)} rows={2}
                 placeholder="Ej: Actualización de valores del tercer trimestre 2025..."
-                style={{ ...inputStyle, resize:"vertical" }}
-              />
+                style={{ ...inputStyle, resize:"vertical" }} />
               <p style={{ fontSize:"11px", color:"#92400e", margin:"6px 0 0" }}>Este comentario quedará registrado en el historial de cambios.</p>
             </div>
           )}
@@ -403,6 +454,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
                       <button onClick={e=>{e.stopPropagation();handleEliminar(f.id)}} style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:"4px", padding:"4px 8px", cursor:"pointer", fontSize:"11px" }}>🗑️</button>
                     </div>
                   </div>
+
                   <div style={{ display:"flex", gap:"12px", marginTop:"8px" }}>
                     {[{label:"Ini",value:f.valor_inicial,color:"#4682B4"},{label:"Ava",value:f.avance_anual,color:"#808080"},{label:"Meta",value:f.meta_anual,color:"#D4A030"},{label:"Tri",value:f.meta_trianual,color:"#505050"}].map((d,i)=>(
                       <div key={i} style={{ textAlign:"center" }}>
@@ -411,6 +463,29 @@ export default function FichasTecnicas({ dependencias = [] }) {
                       </div>
                     ))}
                     {f.tipo_indicador && <span style={{ marginLeft:"auto", background:"#fef9c3", color:"#854d0e", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:"600", alignSelf:"center" }}>{f.tipo_indicador}</span>}
+                  </div>
+
+                  <div style={{ marginTop:"8px", paddingTop:"8px", borderTop:"1px solid #f1f5f9", display:"flex", gap:"16px", flexWrap:"wrap" }}>
+                    {f.creado_por_nombre && (
+                      <div style={{ display:"flex", alignItems:"center", gap:"5px", fontSize:"10px", color:"#6b7280" }}>
+                        <div style={{ width:"18px", height:"18px", borderRadius:"50%", background:"#2563eb", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"8px", flexShrink:0 }}>
+                          {f.creado_por_nombre[0].toUpperCase()}
+                        </div>
+                        <span>Creó: <b style={{ color:"#374151" }}>{f.creado_por_nombre}</b></span>
+                        <span>·</span>
+                        <span>{fmtFecha(f.created_at)}</span>
+                      </div>
+                    )}
+                    {f.actualizado_por_nombre && (
+                      <div style={{ display:"flex", alignItems:"center", gap:"5px", fontSize:"10px", color:"#6b7280" }}>
+                        <div style={{ width:"18px", height:"18px", borderRadius:"50%", background:"#d97706", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"8px", flexShrink:0 }}>
+                          {f.actualizado_por_nombre[0].toUpperCase()}
+                        </div>
+                        <span>Actualizó: <b style={{ color:"#374151" }}>{f.actualizado_por_nombre}</b></span>
+                        <span>·</span>
+                        <span>{fmtFecha(f.fecha_actualizacion)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -425,6 +500,13 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
                 <div style={{ background:"#f3f4f6", borderRadius:"6px", padding:"8px 12px", marginBottom:"12px", textAlign:"center" }}>
                   <p style={{ fontWeight:"700", fontSize:"13px", color:"#1e293b", margin:0 }}>{fichaSel.nombre_indicador}</p>
+                </div>
+
+                <div style={{ display:"flex", flexDirection:"column", gap:"8px", marginBottom:"14px" }}>
+                  <UserBadge nombre={fichaSel.creado_por_nombre} email={fichaSel.creado_por_email} label={`Creó · ${fmtFecha(fichaSel.created_at)}`} color="#2563eb" />
+                  {fichaSel.actualizado_por_nombre && (
+                    <UserBadge nombre={fichaSel.actualizado_por_nombre} email={fichaSel.actualizado_por_email} label={`Última actualización · ${fmtFecha(fichaSel.fecha_actualizacion)}`} color="#d97706" />
+                  )}
                 </div>
 
                 {[["Eje",fichaSel.eje],["Tema",fichaSel.tema],["Política Pública",fichaSel.politica_publica],["Objetivo",fichaSel.objetivo],["Estrategia",fichaSel.estrategia]].filter(([,v])=>v).map(([label,val])=>(
@@ -502,10 +584,9 @@ export default function FichasTecnicas({ dependencias = [] }) {
         </>
       )}
 
-        HISTORIAL
       {modalHistorial && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
-          <div style={{ background:"white", borderRadius:"16px", width:"100%", maxWidth:"860px", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
+          <div style={{ background:"white", borderRadius:"16px", width:"100%", maxWidth:"900px", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
 
             <div style={{ padding:"20px 24px", borderBottom:"1px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center", flexShrink:0 }}>
               <div>
@@ -522,11 +603,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
             <div style={{ overflowY:"auto", padding:"20px 24px", flex:1 }}>
 
-              {cargandoHist && (
-                <div style={{ textAlign:"center", padding:"40px", color:"#6b7280" }}>
-                  Cargando historial...
-                </div>
-              )}
+              {cargandoHist && <div style={{ textAlign:"center", padding:"40px", color:"#6b7280" }}>Cargando historial...</div>}
 
               {!cargandoHist && historial.length===0 && (
                 <div style={{ textAlign:"center", padding:"60px", color:"#9ca3af" }}>
@@ -536,20 +613,20 @@ export default function FichasTecnicas({ dependencias = [] }) {
                 </div>
               )}
 
-              {!cargandoHist && historial.length > 0 && (
+              {!cargandoHist && historial.length>0 && (
                 <>
                   <div style={{ background:"#f0f9ff", border:"1px solid #bae6fd", borderRadius:"8px", padding:"12px 16px", marginBottom:"20px", display:"flex", gap:"12px", alignItems:"center", flexWrap:"wrap" }}>
-                    <span style={{ fontSize:"13px", fontWeight:"600", color:"#0369a1" }}>🔍 Comparar versión:</span>
+                    <span style={{ fontSize:"13px", fontWeight:"600", color:"#0369a1" }}>🔍 Comparar con actual:</span>
                     <select value={versionComparar??""} onChange={e=>setVersionComparar(e.target.value===""?null:Number(e.target.value))}
                       style={{ padding:"6px 12px", borderRadius:"6px", border:"1px solid #bae6fd", fontSize:"13px", background:"white" }}>
-                      <option value="">Selecciona una versión para comparar con la actual</option>
+                      <option value="">Selecciona una versión</option>
                       {historial.map(h=>(
                         <option key={h.id} value={h.version}>
-                          Versión {h.version} — {new Date(h.fecha_modificacion).toLocaleString("es-MX",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+                          v{h.version} — {fmtFecha(h.fecha_modificacion)} {h.modificado_por_nombre?`— ${h.modificado_por_nombre}`:""}
                         </option>
                       ))}
                     </select>
-                    {versionComparar && <button onClick={()=>setVersionComparar(null)} style={{ background:"none", border:"none", color:"#0369a1", cursor:"pointer", fontSize:"12px" }}>✕ Quitar comparación</button>}
+                    {versionComparar && <button onClick={()=>setVersionComparar(null)} style={{ background:"none", border:"none", color:"#0369a1", cursor:"pointer", fontSize:"12px" }}>✕ Quitar</button>}
                   </div>
 
                   {versionComparar && (() => {
@@ -558,8 +635,8 @@ export default function FichasTecnicas({ dependencias = [] }) {
                     return (
                       <div style={{ background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:"8px", padding:"16px", marginBottom:"20px" }}>
                         <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 12px" }}>
-                          ⚡ Diferencias entre versión {versionComparar} y el estado actual
-                          {diffs.length===0 && <span style={{ fontWeight:"400", color:"#6b7280", marginLeft:"8px" }}>(sin diferencias detectadas)</span>}
+                          ⚡ Diferencias: versión {versionComparar} → actual
+                          {diffs.length===0 && <span style={{ fontWeight:"400", color:"#6b7280", marginLeft:"8px" }}>(sin diferencias)</span>}
                         </p>
                         {diffs.length>0 && (
                           <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
@@ -567,10 +644,10 @@ export default function FichasTecnicas({ dependencias = [] }) {
                               const antes = String(verData[campo]||"-")
                               const despues = String(fichaSel?.[campo]||"-")
                               return (
-                                <div key={campo} style={{ display:"grid", gridTemplateColumns:"120px 1fr 1fr", gap:"8px", fontSize:"12px", alignItems:"start" }}>
+                                <div key={campo} style={{ display:"grid", gridTemplateColumns:"110px 1fr 1fr", gap:"8px", fontSize:"12px", alignItems:"start" }}>
                                   <span style={{ fontWeight:"700", color:"#374151", paddingTop:"4px" }}>{label}</span>
                                   <div style={{ background:"#fee2e2", borderRadius:"4px", padding:"4px 8px" }}>
-                                    <p style={{ fontSize:"10px", color:"#991b1b", margin:"0 0 2px", fontWeight:"700" }}>Versión {versionComparar}</p>
+                                    <p style={{ fontSize:"10px", color:"#991b1b", margin:"0 0 2px", fontWeight:"700" }}>v{versionComparar}</p>
                                     <p style={{ margin:0, color:"#7f1d1d" }}>{antes.length>100?antes.substring(0,100)+"...":antes}</p>
                                   </div>
                                   <div style={{ background:"#d1fae5", borderRadius:"4px", padding:"4px 8px" }}>
@@ -590,37 +667,39 @@ export default function FichasTecnicas({ dependencias = [] }) {
                     {historial.map((h, idx) => {
                       const expandida = versionExpandida===h.id
                       const esComparada = versionComparar===h.version
-                      const diffsConSiguiente = idx < historial.length-1
-                        ? getDiferencias(h, historial[idx+1])
-                        : []
+                      const diffsConSig = idx < historial.length-1 ? getDiferencias(h, historial[idx+1]) : []
 
                       return (
-                        <div key={h.id} style={{ border:`2px solid ${esComparada?"#fcd34d":expandida?"#7c3aed":"#e5e7eb"}`, borderRadius:"10px", overflow:"hidden", transition:"all 0.15s" }}>
+                        <div key={h.id} style={{ border:`2px solid ${esComparada?"#fcd34d":expandida?"#7c3aed":"#e5e7eb"}`, borderRadius:"10px", overflow:"hidden" }}>
 
-                          <div
-                            onClick={()=>setVersionExpandida(expandida?null:h.id)}
-                            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", background:esComparada?"#fffbeb":expandida?"#f5f3ff":"white", cursor:"pointer" }}
-                          >
+                          <div onClick={()=>setVersionExpandida(expandida?null:h.id)}
+                            style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", background:esComparada?"#fffbeb":expandida?"#f5f3ff":"white", cursor:"pointer" }}>
                             <div style={{ display:"flex", gap:"12px", alignItems:"center" }}>
                               <div style={{ background:esComparada?"#f59e0b":expandida?"#7c3aed":"#6b7280", color:"white", borderRadius:"999px", padding:"2px 10px", fontSize:"12px", fontWeight:"700" }}>
                                 v{h.version}
                               </div>
                               <div>
                                 <p style={{ margin:"0 0 2px", fontSize:"13px", fontWeight:"600", color:"#1e293b" }}>
-                                  {new Date(h.fecha_modificacion).toLocaleString("es-MX",{
-                                    day:"2-digit", month:"long", year:"numeric",
-                                    hour:"2-digit", minute:"2-digit"
-                                  })}
+                                  {fmtFecha(h.fecha_modificacion)}
                                 </p>
+                                {h.modificado_por_nombre && (
+                                  <div style={{ display:"flex", alignItems:"center", gap:"5px" }}>
+                                    <div style={{ width:"16px", height:"16px", borderRadius:"50%", background:"#d97706", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"700", fontSize:"8px" }}>
+                                      {h.modificado_por_nombre[0].toUpperCase()}
+                                    </div>
+                                    <span style={{ fontSize:"11px", color:"#374151", fontWeight:"600" }}>{h.modificado_por_nombre}</span>
+                                    {h.modificado_por_email && <span style={{ fontSize:"10px", color:"#6b7280" }}>({h.modificado_por_email})</span>}
+                                  </div>
+                                )}
                                 {h.comentario_cambio && (
-                                  <p style={{ margin:0, fontSize:"12px", color:"#6b7280" }}>💬 {h.comentario_cambio}</p>
+                                  <p style={{ margin:"2px 0 0", fontSize:"12px", color:"#6b7280" }}>💬 {h.comentario_cambio}</p>
                                 )}
                               </div>
                             </div>
                             <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
-                              {diffsConSiguiente.length>0 && (
+                              {diffsConSig.length>0 && (
                                 <span style={{ background:"#fee2e2", color:"#991b1b", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:"600" }}>
-                                  {diffsConSiguiente.length} cambio{diffsConSiguiente.length!==1?"s":""}
+                                  {diffsConSig.length} cambio{diffsConSig.length!==1?"s":""}
                                 </span>
                               )}
                               <span style={{ color:"#7c3aed", fontSize:"12px" }}>{expandida?"▲":"▼"}</span>
@@ -629,6 +708,12 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
                           {expandida && (
                             <div style={{ padding:"16px", borderTop:"1px solid #e5e7eb", background:"#fafafa" }}>
+
+                              {h.modificado_por_nombre && (
+                                <div style={{ marginBottom:"12px" }}>
+                                  <UserBadge nombre={h.modificado_por_nombre} email={h.modificado_por_email} label="Modificado por" color="#d97706" />
+                                </div>
+                              )}
 
                               <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:"8px", marginBottom:"16px" }}>
                                 {[["Valor inicial",h.valor_inicial,"#4682B4"],["Avance anual",h.avance_anual,"#808080"],["Meta anual",h.meta_anual,"#D4A030"],["Meta trianual",h.meta_trianual,"#505050"]].map(([label,val,color])=>(
@@ -644,19 +729,19 @@ export default function FichasTecnicas({ dependencias = [] }) {
                                   <div key={campo} style={{ fontSize:"11px" }}>
                                     <span style={{ fontWeight:"700", color:"#374151" }}>{label}: </span>
                                     <span style={{ color:"#4b5563" }}>
-                                      {String(h[campo]).length>80 ? String(h[campo]).substring(0,80)+"..." : String(h[campo])}
+                                      {String(h[campo]).length>80?String(h[campo]).substring(0,80)+"...":String(h[campo])}
                                     </span>
                                   </div>
                                 ))}
                               </div>
 
-                              {diffsConSiguiente.length>0 && (
+                              {diffsConSig.length>0 && (
                                 <div style={{ marginTop:"12px", background:"#fff7ed", borderRadius:"6px", padding:"10px 12px" }}>
                                   <p style={{ fontWeight:"700", fontSize:"11px", color:"#92400e", margin:"0 0 8px" }}>
-                                    ⚡ Campos modificados respecto a la versión anterior (v{historial[idx+1]?.version}):
+                                    ⚡ Campos modificados vs versión anterior (v{historial[idx+1]?.version}):
                                   </p>
                                   <div style={{ display:"flex", flexWrap:"wrap", gap:"4px" }}>
-                                    {diffsConSiguiente.map(([,label])=>(
+                                    {diffsConSig.map(([,label])=>(
                                       <span key={label} style={{ background:"#fed7aa", color:"#9a3412", padding:"2px 8px", borderRadius:"999px", fontSize:"10px", fontWeight:"600" }}>{label}</span>
                                     ))}
                                   </div>
@@ -665,17 +750,12 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
                               <div style={{ marginTop:"12px", display:"flex", gap:"8px" }}>
                                 <button
-                                  onClick={()=>{
-                                    const verConNombre = {...h, dependencia_nombre:fichaSel?.dependencia_nombre, nombre_indicador:h.nombre_indicador||fichaSel?.nombre_indicador}
-                                    exportarFichaPDF(verConNombre)
-                                  }}
+                                  onClick={()=>exportarFichaPDF({...h, dependencia_nombre:fichaSel?.dependencia_nombre, nombre_indicador:h.nombre_indicador||fichaSel?.nombre_indicador})}
                                   style={{ padding:"6px 14px", background:"#7c3aed", color:"white", border:"none", borderRadius:"6px", cursor:"pointer", fontSize:"11px", fontWeight:"600" }}
                                 >
-                                  📄 Exportar PDF de esta versión
+                                  📄 Exportar PDF versión {h.version}
                                 </button>
-                                <span style={{ fontSize:"11px", color:"#6b7280", alignSelf:"center" }}>
-                                  Año {h.anio} · {h.tipo_indicador||"-"}
-                                </span>
+                                <span style={{ fontSize:"11px", color:"#6b7280", alignSelf:"center" }}>Año {h.anio} · {h.tipo_indicador||"-"}</span>
                               </div>
                             </div>
                           )}
