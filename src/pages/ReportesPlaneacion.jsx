@@ -14,7 +14,7 @@ export default function ReportesPlaneacion() {
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/planeacion/reportes")
+    fetch("http://localhost:3000/api/planeacion/reportes")
       .then(r => r.json())
       .then(data => { setDatos(data); setCargando(false); })
       .catch(() => setCargando(false));

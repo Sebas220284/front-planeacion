@@ -1,4 +1,4 @@
-const API = "http://localhost:3001/api"
+const API = "http://localhost:3000/api"
 
 export async function login(email,password){
 
@@ -23,7 +23,7 @@ export async function getMe(){
 
 const token = localStorage.getItem("token")
 
-const response = await fetch("http://localhost:3001/api/auth/me",{
+const response = await fetch("http://localhost:3000/api/auth/me",{
 method:"GET",
 headers:{
 Authorization: `Bearer ${token}`

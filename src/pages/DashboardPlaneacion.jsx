@@ -4,6 +4,7 @@ import socket from "../services/socket";
 import { generarPDF } from "../utils/generarPDF";
 import ReportesPlaneacion from "./ReportesPlaneacion";
 import FichasTecnicas from "./FichasTecnicas";
+import TransparenciaSeccion4 from "./TransparenciaSeccion4"
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -36,7 +37,7 @@ export default function DashboardPlaneacion() {
     socket.emit("join_planeacion");
     const fetchData = async () => {
       try {
-        const resDep = await fetch("http://localhost:3001/api/planeacion/dashboard");
+        const resDep = await fetch("http://localhost:3000/api/planeacion/dashboard");
         const data = await resDep.json();
         setDependencias(data);
         if (data.length > 0) setActiva(data[0].id);
@@ -46,14 +47,14 @@ export default function DashboardPlaneacion() {
           const estrategias = dep.estrategias ? Object.values(dep.estrategias) : [];
           for (const est of estrategias) {
             for (const linea of est.lineas) {
-              const resT = await fetch(`http://localhost:3001/api/trimestres/porLinea/${linea.id}`);
+              const resT = await fetch(`http://localhost:3000/api/trimestres/porLinea/${linea.id}`);
               allTrimestres[linea.id] = await resT.json();
             }
           }
         }
         setTrimestres(allTrimestres);
 
-        const resPend = await fetch("http://localhost:3001/api/lineas/pendientes");
+        const resPend = await fetch("http://localhost:3000/api/lineas/pendientes");
         const dataPend = await resPend.json();
         setLineasPendientes(dataPend);
       } catch (error) {
@@ -64,7 +65,7 @@ export default function DashboardPlaneacion() {
 
     socket.on("nueva_linea_pendiente", (data) => setLineasPendientes((prev) => [data, ...prev]));
     socket.on("trimestre_actualizado", async (data) => {
-      const res = await fetch(`http://localhost:3001/api/trimestres/porLinea/${data.planning_id}`);
+      const res = await fetch(`http://localhost:3000/api/trimestres/porLinea/${data.planning_id}`);
       const t = await res.json();
       setTrimestres((prev) => ({ ...prev, [data.planning_id]: t }));
     });
@@ -90,7 +91,7 @@ export default function DashboardPlaneacion() {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción?");
     if (!confirmar) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
+      const res = await fetch(`http://localhost:3000/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
       if (res.ok) {
         setDependencias((prev) =>
           prev.map((dep) => {
@@ -110,7 +111,7 @@ export default function DashboardPlaneacion() {
 
   const habilitarPDF = async () => {
     if (!activa) return;
-    await fetch("http://localhost:3001/api/pdf/habilitar", {
+    await fetch("http://localhost:3000/api/pdf/habilitar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -125,17 +126,18 @@ export default function DashboardPlaneacion() {
 
   const descargarPDFGlobal = async () => {
     if (!dependencia) return;
-    const res = await fetch(`http://localhost:3001/api/pdf/datos/${dependencia.id}/${filtroPDF.anio}/${filtroPDF.trimestre}`);
+    const res = await fetch(`http://localhost:3000/api/pdf/datos/${dependencia.id}/${filtroPDF.anio}/${filtroPDF.trimestre}`);
     const data = await res.json();
     generarPDF(data, dependencia.name, filtroPDF.anio, filtroPDF.trimestre);
     setModalPDF(false);
   };
+const [vistaTransparencia, setVistaTransparencia] = useState(false)
 
   const revisarTrimestre = async (planning_id, anio, tipo, estado, dependency_id) => {
     const lista = trimestres[planning_id] || [];
     const registros = lista.filter((t) => t.anio === anio && t.tipo === tipo);
     for (const t of registros) {
-      await fetch(`http://localhost:3001/api/review/${t.id}`, {
+      await fetch(`http://localhost:3000/api/review/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado, comentario: estado === "rechazado" ? comentarioRechazo : "", dependency_id }),
@@ -228,7 +230,7 @@ export default function DashboardPlaneacion() {
         <button onClick={() => { setVistaReportes(true); setVistaAlineacion(false); setVistaFichas(false); setActiva(null); }} className={`menu-btn ${vistaReportes ? "active" : ""}`}>📊 Reportes Globales</button>
         <button onClick={() => { setVistaFichas(true); setVistaAlineacion(false); setVistaReportes(false); setActiva(null); }} style={{ marginTop: "8px", background: vistaFichas ? "#854d0e" : "#d97706", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}>📋 Fichas Técnicas</button>
         <button onClick={() => { 
-          fetch("http://localhost:3001/api/pmd/aprobados").then(r => r.json()).then(setEstrategiasPMD);
+          fetch("http://localhost:3000/api/pmd/aprobados").then(r => r.json()).then(setEstrategiasPMD);
           setVistaAlineacion(true); setVistaReportes(false); setVistaFichas(false); setActiva(null);
         }} style={{ marginTop: "8px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}>🎯 Alineación Estratégica</button>
 
@@ -240,9 +242,20 @@ export default function DashboardPlaneacion() {
           ))}
         </div>
         <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); navigate("/"); }}>Cerrar sesión</button>
+        <button
+  onClick={() => { setVistaTransparencia(true); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
+  style={{ marginTop:"8px", background: vistaTransparencia ? "#065f46" : "#059669", color:"white", border:"none", borderRadius:"8px", padding:"12px", width:"100%", cursor:"pointer" }}
+>
+  🔍 Transparencia
+</button>
       </div>
 
       <div className="contenido">
+        {vistaTransparencia ? <TransparenciaSeccion4 /> :
+  vistaFichas ? <FichasTecnicas dependencias={dependencias} /> :
+  vistaReportes ? <ReportesPlaneacion /> :
+  vistaAlineacion ? renderAlineacion() : <>...dashboard normal...</>
+}
         {vistaReportes ? (
           <ReportesPlaneacion />
         ) : vistaFichas ? (

@@ -70,13 +70,13 @@ export default function FichasTecnicas({ dependencias = [] }) {
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) return
-    fetch("http://localhost:3001/api/auth/me", {
+    fetch("http://localhost:3000/api/auth/me", {
       headers: { Authorization: `Bearer ${token}` }
     }).then(r => r.json()).then(data => setCurrentUser(data)).catch(() => {})
   }, [])
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/fichas/lista")
+    fetch("http://localhost:3000/api/fichas/lista")
       .then(r => r.json()).then(setFichas).catch(() => {})
   }, [])
 
@@ -84,7 +84,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
     setCargandoHist(true)
     setHistorial([])
     try {
-      const res = await fetch(`http://localhost:3001/api/fichas/historial/${fichaId}`)
+      const res = await fetch(`http://localhost:3000/api/fichas/historial/${fichaId}`)
       setHistorial(await res.json())
     } catch(e) { console.error(e) }
     setCargandoHist(false)
@@ -129,7 +129,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
     setEnviando(true)
     try {
       const url = editando
-        ? `http://localhost:3001/api/fichas/actualizar/${editando}`
+        ? `http://localhost:3000/api/fichas/actualizar/${editando}`
         : "http://localhost:3001/api/fichas/crear"
       const payload = {
         ...form,
@@ -153,7 +153,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
 
   const handleEliminar = async (id) => {
     if (!window.confirm("¿Eliminar esta ficha?")) return
-    await fetch(`http://localhost:3001/api/fichas/eliminar/${id}`, { method:"DELETE" })
+    await fetch(`http://localhost:3000/api/fichas/eliminar/${id}`, { method:"DELETE" })
     setFichas(prev => prev.filter(f => f.id!==id))
     if (fichaSel?.id===id) setFichaSel(null)
   }

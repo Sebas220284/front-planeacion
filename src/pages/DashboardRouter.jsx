@@ -40,7 +40,7 @@ export default function DashboardRouter() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
-    fetch("http://localhost:3001/api/auth/me", {
+    fetch("http://localhost:3000/api/auth/me", {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
