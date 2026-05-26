@@ -100,7 +100,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
     if (!depId) return
     setCargandoEst(true)
     try {
-      const res = await fetch(`http://localhost:3001/api/fichas/estrategias/${depId}`)
+      const res = await fetch(`http://localhost:3000/api/fichas/estrategias/${depId}`)
       setEstrategiasDep(await res.json())
     } catch(e) { console.error(e) }
     setCargandoEst(false)
@@ -130,7 +130,7 @@ export default function FichasTecnicas({ dependencias = [] }) {
     try {
       const url = editando
         ? `http://localhost:3000/api/fichas/actualizar/${editando}`
-        : "http://localhost:3001/api/fichas/crear"
+        : "http://localhost:3000/api/fichas/crear"
       const payload = {
         ...form,
         comentario_cambio: comentarioCambio,

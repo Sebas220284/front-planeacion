@@ -5,6 +5,7 @@ import { generarPDF } from "../utils/generarPDF";
 import ReportesPlaneacion from "./ReportesPlaneacion";
 import FichasTecnicas from "./FichasTecnicas";
 import TransparenciaSeccion4 from "./TransparenciaSeccion4"
+import TransparenciaSeccion5 from "./TransparenciaSeccion5"
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -27,6 +28,7 @@ export default function DashboardPlaneacion() {
   const [vistaReportes, setVistaReportes] = useState(false);
   const [vistaFichas, setVistaFichas] = useState(false);
   const [filtroEstrategia, setFiltroEstrategia] = useState("todas");
+const [vistaTransparencia, setVistaTransparencia] = useState(null) // null | "s4" | "s5"
 
   const navigate = useNavigate();
   const años = [2025, 2026];
@@ -131,7 +133,6 @@ export default function DashboardPlaneacion() {
     generarPDF(data, dependencia.name, filtroPDF.anio, filtroPDF.trimestre);
     setModalPDF(false);
   };
-const [vistaTransparencia, setVistaTransparencia] = useState(false)
 
   const revisarTrimestre = async (planning_id, anio, tipo, estado, dependency_id) => {
     const lista = trimestres[planning_id] || [];
@@ -242,19 +243,25 @@ const [vistaTransparencia, setVistaTransparencia] = useState(false)
           ))}
         </div>
         <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); navigate("/"); }}>Cerrar sesión</button>
-        <button
-  onClick={() => { setVistaTransparencia(true); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
-  style={{ marginTop:"8px", background: vistaTransparencia ? "#065f46" : "#059669", color:"white", border:"none", borderRadius:"8px", padding:"12px", width:"100%", cursor:"pointer" }}
->
-  🔍 Transparencia
-</button>
+      <div style={{ marginTop:"8px" }}>
+  <p style={{ fontSize:"10px", color:"#94a3b8", margin:"0 0 4px 6px", fontWeight:"600" }}>🔍 TRANSPARENCIA</p>
+  <button onClick={()=>{ setVistaTransparencia("s4"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
+    style={{ background:vistaTransparencia==="s4"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginBottom:"4px" }}>
+    Sección 4 (F4)
+  </button>
+  <button onClick={()=>{ setVistaTransparencia("s5"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
+    style={{ background:vistaTransparencia==="s5"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}>
+    Sección 5 (F5)
+  </button>
+</div>
       </div>
 
       <div className="contenido">
-        {vistaTransparencia ? <TransparenciaSeccion4 /> :
-  vistaFichas ? <FichasTecnicas dependencias={dependencias} /> :
-  vistaReportes ? <ReportesPlaneacion /> :
-  vistaAlineacion ? renderAlineacion() : <>...dashboard normal...</>
+    {vistaTransparencia==="s4" ? <TransparenciaSeccion4 /> :
+ vistaTransparencia==="s5" ? <TransparenciaSeccion5 /> :
+ vistaFichas ? <FichasTecnicas dependencias={dependencias} /> :
+ vistaReportes ? <ReportesPlaneacion /> :
+ vistaAlineacion ? renderAlineacion() : <>...dashboard normal...</>
 }
         {vistaReportes ? (
           <ReportesPlaneacion />

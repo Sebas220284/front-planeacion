@@ -143,7 +143,6 @@ export default function TransparenciaSeccion4() {
     setExportando(false)
   }
 
-  // ── EXPORTAR PDF ──
   const exportarPDF = async () => {
     setExportando(true)
     try {
@@ -226,7 +225,7 @@ export default function TransparenciaSeccion4() {
         </div>
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
           <button onClick={()=>setModalConfig(true)} style={{ padding:"8px 16px", background:"#f3f4f6", border:"1px solid #d1d5db", borderRadius:"8px", cursor:"pointer", fontSize:"13px", fontWeight:"600", color:"#374151" }}>
-            ⚙️ Configurar
+            Configurar
           </button>
           <button onClick={exportarExcel} disabled={exportando||cargando} style={{ padding:"8px 18px", background:"#16a34a", color:"white", border:"none", borderRadius:"8px", cursor:"pointer", fontSize:"13px", fontWeight:"600", opacity:exportando?0.7:1 }}>
             {exportando?"Exportando...":"📊 Excel"}
@@ -237,7 +236,6 @@ export default function TransparenciaSeccion4() {
         </div>
       </div>
 
-      {/* KPIs */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))", gap:"12px", marginBottom:"20px" }}>
         {[
           { label:"Total registros",    value:datos.filas.length,        color:"#2563eb", icon:"📋" },
@@ -253,7 +251,6 @@ export default function TransparenciaSeccion4() {
         ))}
       </div>
 
-      {/* Filtros */}
       <div style={{ display:"flex", gap:"10px", marginBottom:"16px", flexWrap:"wrap" }}>
         <input
           value={busqueda}
@@ -275,10 +272,8 @@ export default function TransparenciaSeccion4() {
         )}
       </div>
 
-      {/* Tabla */}
       {cargando ? (
         <div style={{ textAlign:"center", padding:"80px", color:"#6b7280" }}>
-          <p style={{ fontSize:"32px" }}>⏳</p>
           <p>Generando reporte desde la base de datos...</p>
         </div>
       ) : (
@@ -344,13 +339,12 @@ export default function TransparenciaSeccion4() {
         </div>
       )}
 
-      {/* Modal Configuración */}
       {modalConfig && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
           <div style={{ background:"white", borderRadius:"16px", width:"100%", maxWidth:"600px", maxHeight:"90vh", overflowY:"auto", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
 
             <div style={{ padding:"20px 24px", borderBottom:"1px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <h3 style={{ margin:0, color:"#1e293b" }}>⚙️ Configurar Sección 4</h3>
+              <h3 style={{ margin:0, color:"#1e293b" }}>Configuracion de la  Sección 4</h3>
               <button onClick={()=>setModalConfig(false)} style={{ background:"#f3f4f6", border:"none", borderRadius:"8px", padding:"8px 14px", cursor:"pointer", fontWeight:"600" }}>✕</button>
             </div>
 
@@ -404,7 +398,7 @@ export default function TransparenciaSeccion4() {
                   Cancelar
                 </button>
                 <button onClick={guardarConfig} disabled={guardando} style={{ padding:"10px 24px", borderRadius:"8px", background:"#dc2626", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:guardando?0.7:1 }}>
-                  {guardando?"Guardando...":"✅ Guardar configuración"}
+                  {guardando?"Guardando...":" Guardar configuración"}
                 </button>
               </div>
             </div>
