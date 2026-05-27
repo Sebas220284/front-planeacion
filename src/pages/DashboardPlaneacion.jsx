@@ -6,6 +6,7 @@ import ReportesPlaneacion from "./ReportesPlaneacion";
 import FichasTecnicas from "./FichasTecnicas";
 import TransparenciaSeccion4 from "./TransparenciaSeccion4"
 import TransparenciaSeccion5 from "./TransparenciaSeccion5"
+import TransparenciaSeccion6 from "./TransparenciaSeccion6"
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -28,7 +29,7 @@ export default function DashboardPlaneacion() {
   const [vistaReportes, setVistaReportes] = useState(false);
   const [vistaFichas, setVistaFichas] = useState(false);
   const [filtroEstrategia, setFiltroEstrategia] = useState("todas");
-const [vistaTransparencia, setVistaTransparencia] = useState(null) // null | "s4" | "s5"
+const [vistaTransparencia, setVistaTransparencia] = useState(null)
 
   const navigate = useNavigate();
   const años = [2025, 2026];
@@ -253,15 +254,22 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null) // null | "s4
     style={{ background:vistaTransparencia==="s5"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}>
     Sección 5 (F5)
   </button>
+  <button onClick={()=>{ setVistaTransparencia("s6"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
+  style={{ background:vistaTransparencia==="s6"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginTop:"4px" }}>
+  Sección 6 (F6)
+</button>
 </div>
       </div>
 
       <div className="contenido">
-    {vistaTransparencia==="s4" ? <TransparenciaSeccion4 /> :
+   {vistaTransparencia==="s6" ? <TransparenciaSeccion6 /> :
  vistaTransparencia==="s5" ? <TransparenciaSeccion5 /> :
+ vistaTransparencia==="s4" ? <TransparenciaSeccion4 /> :
+
+
  vistaFichas ? <FichasTecnicas dependencias={dependencias} /> :
  vistaReportes ? <ReportesPlaneacion /> :
- vistaAlineacion ? renderAlineacion() : <>...dashboard normal...</>
+ vistaAlineacion ? renderAlineacion() : <></>
 }
         {vistaReportes ? (
           <ReportesPlaneacion />
