@@ -7,6 +7,8 @@ import FichasTecnicas from "./FichasTecnicas";
 import TransparenciaSeccion4 from "./TransparenciaSeccion4"
 import TransparenciaSeccion5 from "./TransparenciaSeccion5"
 import TransparenciaSeccion6 from "./TransparenciaSeccion6"
+import TransparenciaSeccion40 from "./TransparenciaSeccion40"
+
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -258,6 +260,12 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
   style={{ background:vistaTransparencia==="s6"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginTop:"4px" }}>
   Sección 6 (F6)
 </button>
+<button
+  onClick={()=>{ setVistaTransparencia("s40"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
+  style={{ background:vistaTransparencia==="s40"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginTop:"4px" }}
+>
+  Sección 40 (Art.70)
+</button>  
 </div>
       </div>
 
@@ -265,6 +273,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
    {vistaTransparencia==="s6" ? <TransparenciaSeccion6 /> :
  vistaTransparencia==="s5" ? <TransparenciaSeccion5 /> :
  vistaTransparencia==="s4" ? <TransparenciaSeccion4 /> :
+ vistaTransparencia==="s40" ? <TransparenciaSeccion40 />:
 
 
  vistaFichas ? <FichasTecnicas dependencias={dependencias} /> :
@@ -358,7 +367,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
                                   <td>
                                     <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "center" }}>
                                       <EstadoBadge estado={getEstadoRevision(linea.id, anioFiltro, tipo)} />
-                                      <div style={{ display: "flex", gap: "5px" }}>
+                                      <div style={{ display: "flex", gap: "5px" }}> 
                                         <button className="btn-tabla btn-aprobar" onClick={() => revisarTrimestre(linea.id, anioFiltro, tipo, "aprobado", dependencia.id)}>Ok</button>
                                         <button className="btn-tabla btn-rechazar" onClick={() => setModalRechazar({ id: linea.id, anio: anioFiltro, tipo })}>X</button>
                                       </div>
