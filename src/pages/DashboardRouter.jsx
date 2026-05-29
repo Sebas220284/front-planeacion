@@ -4,6 +4,7 @@ import DashboardPlaneacion from "./DashboardPlaneacion";
 import DashboardDependencias from "./DashboardDependencias";
 import DashboardEstrategica from "./DashboardEstrategica"
 import DashboardAdmin from "./DashboardAdmin";
+import InversionPublica from "./InversionPublica"
 import "../styles/selectorModulos.css";
 
 const MODULOS_POR_ROL = {
@@ -111,10 +112,9 @@ return <DashboardDependencias/>
           
 
           {moduloSeleccionado === "INVERSION" && (
-            <div className="placeholder">
-              <h2>💰 Inversión Pública</h2>
-              <p>Módulo en desarrollo</p>
-            </div>
+          user.rol=="inversion"
+          ?<InversionPublica/>
+          :<InversionPublica/>
           )}
 
           {moduloSeleccionado === "ADMIN" && <DashboardAdmin />}
