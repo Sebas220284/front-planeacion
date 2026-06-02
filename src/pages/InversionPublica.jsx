@@ -148,6 +148,428 @@ export default function InversionPublica({ currentUser = null }) {
     }))
   }
 
+const exportarPDF = async (proyectoId) => {
+  try {
+    const res = await fetch(`${API}/${proyectoId}/exportar`)
+    const p   = await res.json()
+    const jsPDF    = (await import("jspdf")).default
+    const autoTable = (await import("jspdf-autotable")).default
+
+    const doc = new jsPDF({ orientation:"portrait", unit:"mm", format:"letter" })
+    const W   = doc.internal.pageSize.width
+    const gris   = [50,50,50]
+    const blanco = [255,255,255]
+    const azul   = [30,64,175]
+
+    const seccion = (titulo, y) => {
+      doc.setFillColor(...gris); doc.rect(10, y, W-20, 7, "F")
+      doc.setTextColor(...blanco); doc.setFont("helvetica","bold"); doc.setFontSize(9)
+      doc.text(titulo.toUpperCase(), W/2, y+5, { align:"center" })
+      doc.setTextColor(0,0,0); doc.setFont("helvetica","normal")
+      return y + 9
+    }
+
+    const campo = (label, valor, x, y, wLabel=40, wValor=70) => {
+      doc.setFont("helvetica","bold"); doc.setFontSize(7.5); doc.setTextColor(...gris)
+      doc.text(label, x, y)
+      doc.setFont("helvetica","normal"); doc.setTextColor(0,0,0)
+      doc.text(String(valor||"-"), x + wLabel, y)
+    }
+
+    doc.setFillColor(...azul); doc.rect(0,0,W,18,"F")
+    doc.setTextColor(...blanco); doc.setFont("helvetica","bold"); doc.setFontSize(11)
+    doc.text("SISTEMA DE PLANEACIÓN MUNICIPAL", W/2, 8, { align:"center" })
+    doc.setFontSize(9)
+    doc.text("Cédula de Información del Proyecto (CIP)", W/2, 13, { align:"center" })
+    doc.setFontSize(8); doc.text(`Año ${p.anio||2026}`, W/2, 17, { align:"center" })
+
+    let y = 22
+    y = seccion("1. Identificación del Programa/Proyecto", y)
+    doc.setFontSize(8)
+    campo("Programa Presupuestario:", `${p.clave_programa||""} ${p.programa_desc||""}`, 12, y+5)
+    campo("Subprograma:", `${p.clave_subprograma||""} ${p.subprograma_desc||""}`, 12, y+10)
+    campo("Dependencia:", p.dependencia_nombre||"", 12, y+15)
+    campo("Unidad Responsable:", p.unidad_responsable||"", 12, y+20)
+    y += 26
+
+    y = seccion("2. Alineación ODS y Ejes Rectores", y)
+    doc.setFontSize(8)
+    campo("ODS:", p.ods||"", 12, y+5, 35, 150)
+    campo("Plan Nacional:", p.plan_nacional||"", 12, y+10, 35, 150)
+    campo("Plan Estatal:", p.plan_estatal||"", 12, y+15, 35, 150)
+    campo("Plan Municipal:", p.plan_municipal||"", 12, y+20, 35, 150)
+    y += 26
+
+    y = seccion("3. Alineación al Plan Municipal de Desarrollo (PMD)", y)
+    doc.setFontSize(8)
+    campo("Eje:", p.pmd_eje||"", 12, y+5, 25, 165)
+    campo("Tema:", p.pmd_tema||"", 12, y+10, 25, 165)
+    campo("Política Pública:", p.pmd_politica_publica||"", 12, y+15, 35, 155)
+    campo("Objetivo:", p.pmd_objetivo||"", 12, y+20, 25, 165)
+    campo("Estrategia:", p.pmd_estrategia||"", 12, y+25, 25, 165)
+    campo("Línea(s) de Acción:", p.pmd_lineas_accion||"", 12, y+30, 38, 152)
+    y += 36
+
+    y = seccion("4. Programa/Proyecto", y)
+    doc.setFontSize(8)
+    const fuente1 = `${p.fuente_financiamiento_1||""} — ${p.fuente1_desc||p.otra_fuente||""} ${p.fuente_porcentaje_1?`(${p.fuente_porcentaje_1}%)`:""}`.trim()
+    const fuente2 = p.fuente_financiamiento_2 ? `${p.fuente_financiamiento_2} — ${p.fuente2_desc||""} (${p.fuente_porcentaje_2||0}%)` : ""
+    campo("Nombre del Proyecto:", p.nombre_proyecto||"", 12, y+5, 40, 150)
+    campo("Localidad:", p.localidad||"", 12, y+10, 28, 80)
+    campo("Fuente de Financiamiento:", fuente1, 12, y+15, 52, 138)
+    if (fuente2) campo("Fuente 2:", fuente2, 12, y+20, 28, 160)
+    campo("Costo Total:", `$${Number(p.costo_total||0).toLocaleString("es-MX",{minimumFractionDigits:2})}`, 12, y+25, 28, 80)
+    campo("Período de Ejecución:", p.periodo_ejecucion||"", 105, y+25, 38, 55)
+    y += 30
+
+    const tipos = ["tipo_nuevo","tipo_continuidad","tipo_ampliacion","tipo_rehabilitacion",
+                   "tipo_mantenimiento","tipo_construccion","tipo_equipamiento","tipo_instalacion"]
+      .filter(t => p[t]).map(t => t.replace("tipo_","").charAt(0).toUpperCase() + t.replace("tipo_","").slice(1))
+    campo("Tipo:", tipos.join(", ")||"-", 12, y, 20, 170)
+    y += 6
+
+    const docs = ["doc_expediente_tecnico:Exp.Técnico","doc_viabilidad:Viabilidad",
+                  "doc_analisis_costo:Análisis C/B","doc_acreditacion_propiedad:Acreditación",
+                  "doc_peticion_ciudadania:Petición Ciudadana","doc_convenio:Convenio",
+                  "doc_padron_beneficiarios:Padrón Benef."]
+      .filter(d => p[d.split(":")[0]]).map(d => d.split(":")[1])
+    if (docs.length) { campo("Documentación:", docs.join(", "), 12, y, 28, 162); y += 6 }
+
+    doc.addPage()
+    y = 15
+
+    const textArea = (titulo, texto, yPos) => {
+      if (!texto) return yPos
+      doc.setFillColor(...gris); doc.rect(10, yPos, W-20, 6, "F")
+      doc.setTextColor(...blanco); doc.setFont("helvetica","bold"); doc.setFontSize(8.5)
+      doc.text(titulo.toUpperCase(), 12, yPos+4.5)
+      doc.setTextColor(0,0,0); doc.setFont("helvetica","normal"); doc.setFontSize(7.5)
+      const lines = doc.splitTextToSize(String(texto), W-24)
+      const blockH = lines.length * 4 + 4
+      doc.rect(10, yPos+6, W-20, blockH)
+      doc.text(lines, 12, yPos+10)
+      return yPos + 6 + blockH + 3
+    }
+
+    y = textArea("A. Origen y Antecedentes",   p.origen_antecedentes,   y)
+    y = textArea("Situación Actual y Sin Proyecto", p.situacion_sin_proyecto, y)
+    y = textArea("Situación Con Proyecto",      p.situacion_con_proyecto, y)
+    y = textArea("Descripción del Presupuesto", p.descripcion_presupuesto, y)
+    y = textArea("Objetivos — Beneficios Esperados", p.objetivos_beneficios, y)
+
+    if (y > 230) { doc.addPage(); y = 15 }
+    y = textArea("Diagnóstico de Visita de Campo", p.consideraciones_diagnostico, y)
+
+    doc.addPage()
+    y = 15
+    y = seccion("8. Desglose del Presupuesto", y)
+
+    if (p.desglose && p.desglose.length > 0) {
+      autoTable(doc, {
+        startY: y + 2,
+        margin: { left:10, right:10 },
+        head: [["Partida","Grupo/Área","Descripción","Sin IVA","Con IVA"]],
+        body: p.desglose.map(d => [
+          d.partida_clave||"",
+          d.grupo_nombre||"",
+          d.descripcion||"",
+          `$${Number(d.importe_sin_iva||0).toLocaleString("es-MX",{minimumFractionDigits:2})}`,
+          `$${Number(d.importe_con_iva||0).toLocaleString("es-MX",{minimumFractionDigits:2})}`
+        ]),
+        foot: [[
+          { content:"TOTAL", colSpan:4, styles:{ halign:"right", fontStyle:"bold" } },
+          { content:`$${p.desglose.reduce((s,d)=>s+Number(d.importe_con_iva||0),0).toLocaleString("es-MX",{minimumFractionDigits:2})}`,
+            styles:{ fontStyle:"bold", textColor:azul } }
+        ]],
+        styles: { fontSize:7.5, cellPadding:2 },
+        headStyles: { fillColor:gris, textColor:blanco, fontStyle:"bold" },
+        footStyles: { fillColor:[240,240,240] },
+        columnStyles: { 0:{cellWidth:18}, 3:{halign:"right"}, 4:{halign:"right", fontStyle:"bold"} }
+      })
+      y = doc.lastAutoTable.finalY + 6
+    } else {
+      doc.setFontSize(8); doc.text("Sin partidas registradas", 12, y+6); y += 12
+    }
+
+    y = seccion("9. Metas Trimestrales", y)
+
+    if (p.metas && p.metas.length > 0) {
+      autoTable(doc, {
+        startY: y + 2,
+        margin: { left:10, right:10 },
+        head: [["Descripción","U.M.","Total","T-1","T-2","T-3","T-4"]],
+        body: p.metas.map(m => [
+          m.descripcion||"", m.unidad_medida||"",
+          m.cantidad_total||0, m.t1||0, m.t2||0, m.t3||0, m.t4||0
+        ]),
+        styles: { fontSize:7.5, cellPadding:2 },
+        headStyles: { fillColor:gris, textColor:blanco, fontStyle:"bold" },
+        columnStyles: { 2:{halign:"center"}, 3:{halign:"center"}, 4:{halign:"center"}, 5:{halign:"center"}, 6:{halign:"center"} }
+      })
+      y = doc.lastAutoTable.finalY + 6
+    } else {
+      doc.setFontSize(8); doc.text("Sin metas registradas", 12, y+6); y += 12
+    }
+
+    if (y > 220) { doc.addPage(); y = 15 }
+    y = seccion("10. Población Objetivo", y)
+    doc.setFontSize(8)
+    campo("Unidad de Medida:", p.unidad_medida_poblacion||"Habitantes", 12, y+5)
+    campo("Total:", String(p.poblacion_total||"-"), 12, y+10)
+    campo("Mujeres:", String(p.poblacion_mujeres||"-"), 12, y+15)
+    campo("Hombres:", String(p.poblacion_hombres||"-"), 80, y+15)
+    campo("Tipo de Población:", p.tipo_poblacion||"", 12, y+20, 35, 150)
+    y += 26
+
+    if (p.georef_macro_lat || p.georef_micro_lat) {
+      y = seccion("11. Georreferenciación", y)
+      doc.setFontSize(8)
+      if (p.georef_macro_lat) {
+        campo("Croquis Macro — Lat:", String(p.georef_macro_lat), 12, y+5)
+        campo("Lng:", String(p.georef_macro_lng), 80, y+5)
+        campo("Localidad:", p.georef_macro_localidad||"", 12, y+10, 25, 165)
+      }
+      if (p.georef_micro_lat) {
+        campo("Croquis Micro — Lat:", String(p.georef_micro_lat), 12, y+16)
+        campo("Lng:", String(p.georef_micro_lng), 80, y+16)
+      }
+      y += 22
+    }
+
+    if (y > 230) { doc.addPage(); y = 15 }
+    y = seccion("Responsable del Proyecto", y)
+    doc.setFontSize(8)
+
+    const firmaY = y + 30
+    doc.line(20, firmaY, 85, firmaY)
+    doc.line(W-85, firmaY, W-20, firmaY)
+
+    doc.setFontSize(8); doc.setFont("helvetica","bold")
+    doc.text(p.elaboro_nombre||"__________________________", 52, firmaY+5, { align:"center" })
+    doc.text(p.visto_bueno_nombre||"__________________________", W-52, firmaY+5, { align:"center" })
+    doc.setFont("helvetica","normal"); doc.setFontSize(7)
+    doc.text(p.elaboro_cargo||"Nombre del Titular Unidad Responsable", 52, firmaY+9, { align:"center" })
+    doc.text(p.visto_bueno_cargo||"Nombre del Titular de la Dependencia", W-52, firmaY+9, { align:"center" })
+    doc.setFontSize(7.5); doc.setFont("helvetica","bold")
+    doc.text("Elaboró", 52, firmaY+14, { align:"center" })
+    doc.text("Visto Bueno", W-52, firmaY+14, { align:"center" })
+
+    const totalPags = doc.internal.getNumberOfPages()
+    for (let i=1; i<=totalPags; i++) {
+      doc.setPage(i)
+      doc.setFontSize(6.5); doc.setTextColor(150,150,150)
+      doc.text(`Página ${i} de ${totalPags}`, W-12, 287, { align:"right" })
+      doc.text("Sistema de Planeación Municipal — H. Ayuntamiento de Tuxtla Gutiérrez", 12, 287)
+    }
+
+    doc.save(`CIP_${p.nombre_proyecto?.replace(/\s+/g,"_")||p.id}_${p.anio||2026}.pdf`)
+  } catch(e) {
+    console.error("Error exportar PDF:", e)
+    alert("Error al generar PDF: " + e.message)
+  }
+}
+
+const exportarExcel = async (proyectoId) => {
+  try {
+    const res = await fetch(`${API}/${proyectoId}/exportar`)
+    const p   = await res.json()
+    const ExcelJS = (await import("exceljs")).default
+    const wb = new ExcelJS.Workbook()
+    wb.creator = "Sistema de Planeación Municipal"
+    wb.created = new Date()
+
+    const ws1 = wb.addWorksheet("Datos Generales CIP")
+    ws1.columns = [
+      { width:35 }, { width:70 }
+    ]
+
+    const hdAzul = { type:"pattern", pattern:"solid", fgColor:{ argb:"FF1E40AF" } }
+    const hdGris = { type:"pattern", pattern:"solid", fgColor:{ argb:"FF323232" } }
+    const fntBlancoB = { bold:true, color:{ argb:"FFFFFFFF" }, size:11 }
+    const fntBlancoSm = { bold:true, color:{ argb:"FFFFFFFF" }, size:9 }
+    const fntGrisB = { bold:true, color:{ argb:"FF374151" }, size:9 }
+    const wrap = { wrapText:true, vertical:"top" }
+    const center = { horizontal:"center", vertical:"middle" }
+
+    ws1.mergeCells("A1:B1")
+    ws1.getCell("A1").value = "CÉDULA DE INFORMACIÓN DEL PROYECTO (CIP)"
+    ws1.getCell("A1").fill = hdAzul
+    ws1.getCell("A1").font = fntBlancoB
+    ws1.getCell("A1").alignment = center
+    ws1.getRow(1).height = 22
+
+    ws1.mergeCells("A2:B2")
+    ws1.getCell("A2").value = `Sistema de Planeación Municipal — Ayuntamiento de Tuxtla Gutiérrez ${p.anio||2026}`
+    ws1.getCell("A2").fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFE0E7FF" } }
+    ws1.getCell("A2").font = { bold:true, color:{ argb:"FF1E40AF" }, size:9 }
+    ws1.getCell("A2").alignment = center
+    ws1.getRow(2).height = 14
+
+    const bloqueSeccion = (ws, titulo, filaInicio) => {
+      ws.mergeCells(`A${filaInicio}:B${filaInicio}`)
+      ws.getCell(`A${filaInicio}`).value = titulo.toUpperCase()
+      ws.getCell(`A${filaInicio}`).fill = hdGris
+      ws.getCell(`A${filaInicio}`).font = fntBlancoSm
+      ws.getCell(`A${filaInicio}`).alignment = { horizontal:"center", vertical:"middle" }
+      ws.getRow(filaInicio).height = 14
+      return filaInicio + 1
+    }
+
+    const fila = (ws, label, valor, filaNum) => {
+      ws.getCell(`A${filaNum}`).value = label
+      ws.getCell(`A${filaNum}`).font = fntGrisB
+      ws.getCell(`A${filaNum}`).fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFF8FAFC" } }
+      ws.getCell(`A${filaNum}`).border = { bottom:{ style:"thin", color:{ argb:"FFE5E7EB" } } }
+      ws.getCell(`B${filaNum}`).value = String(valor||"-")
+      ws.getCell(`B${filaNum}`).alignment = wrap
+      ws.getCell(`B${filaNum}`).border = { bottom:{ style:"thin", color:{ argb:"FFE5E7EB" } } }
+      ws.getRow(filaNum).height = 16
+      return filaNum + 1
+    }
+
+    let f = 3
+
+    f = bloqueSeccion(ws1, "1. Identificación del Programa/Proyecto", f)
+    f = fila(ws1,"Programa Presupuestario", `${p.clave_programa||""} — ${p.programa_desc||""}`, f)
+    f = fila(ws1,"Subprograma", `${p.clave_subprograma||""} — ${p.subprograma_desc||""}`, f)
+    f = fila(ws1,"Dependencia", p.dependencia_nombre, f)
+    f = fila(ws1,"Unidad Responsable", p.unidad_responsable, f)
+
+    f = bloqueSeccion(ws1,"2. Alineación ODS y Ejes Rectores", f)
+    f = fila(ws1,"ODS", p.ods, f)
+    f = fila(ws1,"Plan Nacional de Desarrollo", p.plan_nacional, f)
+    f = fila(ws1,"Plan Estatal de Desarrollo", p.plan_estatal, f)
+    f = fila(ws1,"Plan Municipal de Desarrollo", p.plan_municipal, f)
+
+    f = bloqueSeccion(ws1,"3. Alineación al PMD", f)
+    f = fila(ws1,"Eje", p.pmd_eje, f)
+    f = fila(ws1,"Tema", p.pmd_tema, f)
+    f = fila(ws1,"Política Pública", p.pmd_politica_publica, f)
+    f = fila(ws1,"Objetivo", p.pmd_objetivo, f)
+    f = fila(ws1,"Estrategia", p.pmd_estrategia, f)
+    f = fila(ws1,"Línea(s) de Acción", p.pmd_lineas_accion, f)
+
+    f = bloqueSeccion(ws1,"4. Datos del Proyecto", f)
+    f = fila(ws1,"Nombre del Proyecto", p.nombre_proyecto, f)
+    f = fila(ws1,"Localidad", p.localidad, f)
+    f = fila(ws1,"Fuente de Financiamiento 1", `${p.fuente_financiamiento_1||""} — ${p.fuente1_desc||""} (${p.fuente_porcentaje_1||0}%)`, f)
+    if (p.fuente_financiamiento_2) f = fila(ws1,"Fuente de Financiamiento 2", `${p.fuente_financiamiento_2} — ${p.fuente2_desc||""} (${p.fuente_porcentaje_2||0}%)`, f)
+    f = fila(ws1,"Costo Total", `$${Number(p.costo_total||0).toLocaleString("es-MX",{minimumFractionDigits:2})}`, f)
+    f = fila(ws1,"Período de Ejecución", p.periodo_ejecucion, f)
+
+    const tipos = ["tipo_nuevo","tipo_continuidad","tipo_ampliacion","tipo_rehabilitacion",
+                   "tipo_mantenimiento","tipo_construccion","tipo_equipamiento","tipo_instalacion"]
+      .filter(t=>p[t]).map(t=>t.replace("tipo_","").charAt(0).toUpperCase()+t.replace("tipo_","").slice(1))
+    f = fila(ws1,"Tipo de Proyecto", tipos.join(", ")||"-", f)
+
+    f = bloqueSeccion(ws1,"5. Narrativa del Proyecto", f)
+    f = fila(ws1,"Origen y Antecedentes", p.origen_antecedentes, f)
+    if (ws1.getRow(f-1).height < 40) ws1.getRow(f-1).height = 40
+    f = fila(ws1,"Situación Sin Proyecto", p.situacion_sin_proyecto, f)
+    ws1.getRow(f-1).height = 50
+    f = fila(ws1,"Situación Con Proyecto", p.situacion_con_proyecto, f)
+    ws1.getRow(f-1).height = 50
+    f = fila(ws1,"Objetivos / Beneficios Esperados", p.objetivos_beneficios, f)
+    ws1.getRow(f-1).height = 50
+    f = fila(ws1,"Diagnóstico de Visita de Campo", p.consideraciones_diagnostico, f)
+
+    f = bloqueSeccion(ws1,"10. Población Objetivo", f)
+    f = fila(ws1,"Unidad de Medida", p.unidad_medida_poblacion, f)
+    f = fila(ws1,"Total", p.poblacion_total, f)
+    f = fila(ws1,"Mujeres", p.poblacion_mujeres, f)
+    f = fila(ws1,"Hombres", p.poblacion_hombres, f)
+    f = fila(ws1,"Tipo de Población", p.tipo_poblacion, f)
+
+    f = bloqueSeccion(ws1,"Responsables del Proyecto", f)
+    f = fila(ws1,"Elaboró — Nombre", p.elaboro_nombre, f)
+    f = fila(ws1,"Elaboró — Cargo", p.elaboro_cargo, f)
+    f = fila(ws1,"Visto Bueno — Nombre", p.visto_bueno_nombre, f)
+    f = fila(ws1,"Visto Bueno — Cargo", p.visto_bueno_cargo, f)
+
+    const ws2 = wb.addWorksheet("8. Desglose Presupuesto")
+    ws2.columns = [
+      {width:14},{width:30},{width:50},{width:22},{width:22}
+    ]
+    ws2.mergeCells("A1:E1")
+    ws2.getCell("A1").value = "DESGLOSE DEL PRESUPUESTO"
+    ws2.getCell("A1").fill = hdAzul; ws2.getCell("A1").font = fntBlancoB
+    ws2.getCell("A1").alignment = center; ws2.getRow(1).height = 18
+
+    const hdRow2 = ws2.addRow(["Partida","Grupo/Área","Descripción","Sin IVA","Con IVA"])
+    hdRow2.eachCell(cell => {
+      cell.fill = hdGris; cell.font = fntBlancoSm
+      cell.alignment = { horizontal:"center", vertical:"middle", wrapText:true }
+    })
+    ws2.getRow(2).height = 18
+
+    let totalConIva = 0
+    ;(p.desglose||[]).forEach((d,i) => {
+      const row = ws2.addRow([
+        d.partida_clave||"", d.grupo_nombre||"", d.descripcion||"",
+        Number(d.importe_sin_iva||0), Number(d.importe_con_iva||0)
+      ])
+      row.getCell(4).numFmt = '"$"#,##0.00'
+      row.getCell(5).numFmt = '"$"#,##0.00'
+      row.getCell(5).font = { bold:true, color:{ argb:"FF1E40AF" } }
+      row.getCell(1).fill = row.getCell(2).fill = row.getCell(3).fill =
+      row.getCell(4).fill = row.getCell(5).fill = {
+        type:"pattern", pattern:"solid",
+        fgColor:{ argb: i%2===0?"FFFFFFFF":"FFF5F5F5" }
+      }
+      row.height = 18
+      totalConIva += Number(d.importe_con_iva||0)
+    })
+
+    const totalRow = ws2.addRow(["","","","TOTAL:", totalConIva])
+    totalRow.getCell(4).font = { bold:true, size:10 }
+    totalRow.getCell(5).numFmt = '"$"#,##0.00'
+    totalRow.getCell(5).font = { bold:true, size:11, color:{ argb:"FF1E40AF" } }
+    totalRow.getCell(5).fill = { type:"pattern", pattern:"solid", fgColor:{ argb:"FFE0E7FF" } }
+    totalRow.height = 20
+
+    const ws3 = wb.addWorksheet("9. Metas Trimestrales")
+    ws3.columns = [ {width:50},{width:15},{width:12},{width:12},{width:12},{width:12},{width:12} ]
+
+    ws3.mergeCells("A1:G1")
+    ws3.getCell("A1").value = "METAS TRIMESTRALES"
+    ws3.getCell("A1").fill = hdAzul; ws3.getCell("A1").font = fntBlancoB
+    ws3.getCell("A1").alignment = center; ws3.getRow(1).height = 18
+
+    const hdMetas = ws3.addRow(["Descripción","U.M.","Total","T-1","T-2","T-3","T-4"])
+    hdMetas.eachCell(cell => {
+      cell.fill = hdGris; cell.font = fntBlancoSm
+      cell.alignment = { horizontal:"center", vertical:"middle" }
+    })
+    ws3.getRow(2).height = 18
+
+    ;(p.metas||[]).forEach((m,i) => {
+      const row = ws3.addRow([
+        m.descripcion||"", m.unidad_medida||"",
+        m.cantidad_total||0, m.t1||0, m.t2||0, m.t3||0, m.t4||0
+      ])
+      for(let c=2;c<=7;c++) row.getCell(c).alignment = { horizontal:"center" }
+      row.eachCell(cell => {
+        cell.fill = { type:"pattern", pattern:"solid", fgColor:{ argb: i%2===0?"FFFFFFFF":"FFF5F5F5" } }
+      })
+      row.height = 18
+    })
+
+    const buf  = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buf], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement("a")
+    a.href = url
+    a.download = `CIP_${p.nombre_proyecto?.replace(/\s+/g,"_")||p.id}_${p.anio||2026}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch(e) {
+    console.error("Error exportar Excel:", e)
+    alert("Error al generar Excel: " + e.message)
+  }
+}
+
+
+
   const handleGuardar = async () => {
     if (!form.nombre_proyecto)  { alert("El nombre del proyecto es obligatorio"); return }
     if (!form.dependency_id)    { alert("Selecciona una dependencia"); return }
@@ -169,7 +591,7 @@ export default function InversionPublica({ currentUser = null }) {
         setEditando(data.id)
         setDesglose([]); setMetas([])
       }
-      alert("✅ Proyecto guardado correctamente")
+      alert(" Proyecto guardado correctamente")
     } catch(e) {
       console.error(e)
       alert("Error al guardar: " + e.message)
@@ -277,8 +699,8 @@ export default function InversionPublica({ currentUser = null }) {
           </div>
           <p style={{ margin:0, color:"#6b7280", fontSize:"13px" }}>
             {cargandoCat
-              ? "⏳ Cargando catálogos..."
-              : `✅ Catálogos listos · ${dependencias.length} deps · ${catProgramas.length} programas · ${catFuentes.length} fuentes`
+              ? " Cargando catálogos..."
+              : ` Catálogos listos · ${dependencias.length} deps · ${catProgramas.length} programas · ${catFuentes.length} fuentes`
             }
           </p>
         </div>
@@ -337,10 +759,10 @@ export default function InversionPublica({ currentUser = null }) {
           </div>
 
           {cargando ? (
-            <div style={{ textAlign:"center", padding:"80px", color:"#6b7280" }}>⏳ Cargando proyectos...</div>
+            <div style={{ textAlign:"center", padding:"80px", color:"#6b7280" }}> Cargando proyectos...</div>
           ) : proyectosFiltrados.length===0 ? (
             <div style={{ textAlign:"center", padding:"80px", background:"white", borderRadius:"12px", border:"1px solid #e5e7eb", color:"#9ca3af" }}>
-              <p style={{ fontSize:"48px", margin:"0 0 12px" }}>🏗️</p>
+              <p style={{ fontSize:"48px", margin:"0 0 12px" }}></p>
               <p style={{ fontWeight:"600", fontSize:"16px" }}>Sin proyectos aún</p>
               <p style={{ fontSize:"13px" }}>Haz clic en "+ Nueva CIP" para comenzar.</p>
             </div>
@@ -358,16 +780,28 @@ export default function InversionPublica({ currentUser = null }) {
                         </div>
                         <p style={{ color:"#dc2626", fontSize:"11px", margin:"0 0 4px", fontWeight:"600" }}>{p.dependencia_nombre}</p>
                         <div style={{ display:"flex", gap:"16px", fontSize:"11px", color:"#6b7280", flexWrap:"wrap" }}>
-                          <span>📅 {p.periodo_ejecucion || p.anio}</span>
-                          <span>💰 ${Number(p.costo_total||0).toLocaleString("es-MX",{minimumFractionDigits:2})}</span>
-                          {p.programa_desc && <span>📂 {p.clave_programa} — {p.programa_desc}</span>}
-                          <span>🎯 {p.total_metas||0} meta{p.total_metas!==1?"s":""}</span>
+                          <span> {p.periodo_ejecucion || p.anio}</span>
+                          <span> ${Number(p.costo_total||0).toLocaleString("es-MX",{minimumFractionDigits:2})}</span>
+                          {p.programa_desc && <span> {p.clave_programa} — {p.programa_desc}</span>}
+                          <span> {p.total_metas||0} meta{p.total_metas!==1?"s":""}</span>
                         </div>
                       </div>
-                      <button onClick={()=>abrirEditar(p)}
-                        style={{ background:"#dbeafe", color:"#1e40af", border:"none", borderRadius:"6px", padding:"7px 14px", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginLeft:"12px" }}>
-                        ✏️ Editar
-                      </button>
+                     <div style={{ display:"flex", gap:"6px", marginLeft:"12px", flexShrink:0 }}>
+  <button onClick={()=>abrirEditar(p)}
+    style={{ background:"#dbeafe", color:"#1e40af", border:"none", borderRadius:"6px", padding:"7px 12px", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}>
+     Editar
+  </button>
+  <button onClick={()=>exportarPDF(p.id)}
+    style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:"6px", padding:"7px 12px", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}
+    title="Exportar PDF">
+     PDF
+  </button>
+  <button onClick={()=>exportarExcel(p.id)}
+    style={{ background:"#d1fae5", color:"#065f46", border:"none", borderRadius:"6px", padding:"7px 12px", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}
+    title="Exportar Excel">
+     XLS
+  </button>
+</div>
                     </div>
                   </div>
                 )
@@ -382,8 +816,8 @@ export default function InversionPublica({ currentUser = null }) {
 
           <div style={{ display:"flex", gap:"4px", marginBottom:"20px", flexWrap:"wrap" }}>
             {[
-              [1,"🏢 1. Identificación"],[2,"💰 2. Presupuesto"],[3,"🎯 3. Metas"],
-              [4,"👥 4. Población"],[5,"📝 5. Narrativa"],[6,"📍 6. Georef"],[7,"✅ 7. Responsables"]
+              [1," 1. Identificación"],[2," 2. Presupuesto"],[3," 3. Metas"],
+              [4," 4. Población"],[5," 5. Narrativa"],[6," 6. Georef"],[7," 7. Responsables"]
             ].map(([n,label]) => (
               <button key={n} onClick={()=>setSeccion(n)}
                 style={{ padding:"8px 14px", borderRadius:"8px", border:"none", cursor:"pointer", fontSize:"12px", fontWeight:"600",
@@ -457,7 +891,7 @@ export default function InversionPublica({ currentUser = null }) {
 
               <div style={sec}>
                 <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 8px" }}>
-                  🌍 Alineación ODS y Ejes Rectores
+                   Alineación ODS y Ejes Rectores
                   <span style={{ ...apiTag, fontSize:"10px", marginLeft:"8px" }}>API en desarrollo — texto libre por ahora</span>
                 </p>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>
@@ -470,7 +904,7 @@ export default function InversionPublica({ currentUser = null }) {
 
               <div style={{ ...sec, border:"1px solid #bbf7d0", background:"#f0fdf4" }}>
                 <p style={{ fontWeight:"700", fontSize:"13px", color:"#166534", margin:"0 0 8px" }}>
-                  🎯 Alineación al PMD
+                   Alineación al PMD
                   <span style={{ ...apiTag, background:"#bbf7d0", color:"#166534", marginLeft:"8px" }}>
                     Desde tu BD — {pmdOpciones.length} estrategia{pmdOpciones.length!==1?"s":""}
                   </span>
@@ -527,7 +961,7 @@ export default function InversionPublica({ currentUser = null }) {
               </div>
 
               <div style={sec}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>🏗️ Datos del Proyecto</p>
+                <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}> Datos del Proyecto</p>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"14px" }}>
                   <div style={{ gridColumn:"1/-1" }}>
                     <label style={lbl}>Nombre del Programa/Proyecto *</label>
@@ -579,7 +1013,7 @@ export default function InversionPublica({ currentUser = null }) {
               </div>
 
               <div style={sec}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 10px" }}>📂 Tipo de Programa/Proyecto</p>
+                <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 10px" }}> Tipo de Programa/Proyecto</p>
                 <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
                   {[["tipo_nuevo","Nuevo"],["tipo_continuidad","Continuidad"],["tipo_ampliacion","Ampliación"],
                     ["tipo_rehabilitacion","Rehabilitación"],["tipo_mantenimiento","Mantenimiento"],
@@ -596,7 +1030,7 @@ export default function InversionPublica({ currentUser = null }) {
               </div>
 
               <div style={sec}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 10px" }}>📁 Documentación Soporte</p>
+                <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 10px" }}> Documentación Soporte</p>
                 <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
                   {[["doc_expediente_tecnico","Expediente Técnico"],["doc_viabilidad","Viabilidad"],
                     ["doc_analisis_costo","Análisis Costo/Beneficio"],["doc_acreditacion_propiedad","Acreditación Propiedad"],
@@ -616,7 +1050,7 @@ export default function InversionPublica({ currentUser = null }) {
               <div style={{ display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={handleGuardar} disabled={enviando}
                   style={{ padding:"11px 28px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", fontSize:"14px", opacity:enviando?0.7:1 }}>
-                  {enviando ? "Guardando..." : editando ? "✅ Actualizar" : "✅ Guardar y continuar →"}
+                  {enviando ? "Guardando..." : editando ? " Actualizar" : " Guardar y continuar →"}
                 </button>
               </div>
             </>
@@ -624,7 +1058,7 @@ export default function InversionPublica({ currentUser = null }) {
 
           {seccion===2 && (
             <div style={sec}>
-              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}>💰 Desglose del Presupuesto</p>
+              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}> Desglose del Presupuesto</p>
               {!editando
                 ? <p style={{ color:"#dc2626", fontSize:"12px", background:"#fee2e2", padding:"10px", borderRadius:"6px" }}>⚠️ Guarda primero la Sección 1 para poder agregar partidas.</p>
                 : (
@@ -710,7 +1144,7 @@ export default function InversionPublica({ currentUser = null }) {
 
           {seccion===3 && (
             <div style={sec}>
-              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}>🎯 Metas Trimestrales</p>
+              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}> Metas Trimestrales</p>
               {!editando
                 ? <p style={{ color:"#dc2626", fontSize:"12px", background:"#fee2e2", padding:"10px", borderRadius:"6px" }}>⚠️ Guarda primero la Sección 1.</p>
                 : (
@@ -774,7 +1208,7 @@ export default function InversionPublica({ currentUser = null }) {
 
           {seccion===4 && (
             <div style={sec}>
-              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}>👥 Población Objetivo / Área de Enfoque</p>
+              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}> Población Objetivo / Área de Enfoque</p>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"14px" }}>
                 <div><label style={lbl}>Unidad de Medida</label><input name="unidad_medida_poblacion" value={form.unidad_medida_poblacion||"Habitantes"} onChange={handleChange} style={inp} /></div>
                 <div><label style={lbl}>Total</label><input name="poblacion_total" type="number" value={form.poblacion_total||""} onChange={handleChange} style={inp} /></div>
@@ -785,7 +1219,7 @@ export default function InversionPublica({ currentUser = null }) {
               <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"16px" }}>
                 <button onClick={handleGuardar} disabled={enviando}
                   style={{ padding:"10px 24px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:enviando?0.7:1 }}>
-                  {enviando?"Guardando...":"✅ Guardar"}
+                  {enviando?"Guardando...":" Guardar"}
                 </button>
               </div>
             </div>
@@ -810,7 +1244,7 @@ export default function InversionPublica({ currentUser = null }) {
               <div style={{ display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={handleGuardar} disabled={enviando}
                   style={{ padding:"10px 24px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:enviando?0.7:1 }}>
-                  {enviando?"Guardando...":"✅ Guardar narrativa"}
+                  {enviando?"Guardando...":" Guardar narrativa"}
                 </button>
               </div>
             </div>
@@ -819,9 +1253,9 @@ export default function InversionPublica({ currentUser = null }) {
           {seccion===6 && (
             <div>
               <div style={{ ...sec, background:"#fffbeb", border:"1px solid #fcd34d" }}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 6px" }}>📍 Croquis Macro (Georreferenciación)</p>
+                <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 6px" }}> Croquis Macro (Georreferenciación)</p>
                 <p style={{ fontSize:"11px", color:"#92400e", margin:"0 0 12px" }}>
-                  Mapbox se integra en Fase 2. Por ahora ingresa coordenadas manualmente. Puedes obtenerlas desde Google Maps (clic derecho → "¿Qué hay aquí?").
+                  Por ahora ingresa coordenadas manualmente. Puedes obtenerlas desde Google Maps (clic derecho → "¿Qué hay aquí?").
                 </p>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px" }}>
                   <div><label style={lbl}>Latitud</label><input name="georef_macro_lat" type="number" step="any" value={form.georef_macro_lat||""} onChange={handleChange} style={inp} placeholder="16.7516" /></div>
@@ -830,7 +1264,7 @@ export default function InversionPublica({ currentUser = null }) {
                 </div>
               </div>
               <div style={{ ...sec, background:"#fffbeb", border:"1px solid #fcd34d" }}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 12px" }}>📍 Croquis Micro</p>
+                <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 12px" }}> Croquis Micro</p>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px" }}>
                   <div><label style={lbl}>Latitud</label><input name="georef_micro_lat" type="number" step="any" value={form.georef_micro_lat||""} onChange={handleChange} style={inp} /></div>
                   <div><label style={lbl}>Longitud</label><input name="georef_micro_lng" type="number" step="any" value={form.georef_micro_lng||""} onChange={handleChange} style={inp} /></div>
@@ -840,7 +1274,7 @@ export default function InversionPublica({ currentUser = null }) {
               <div style={{ display:"flex", justifyContent:"flex-end" }}>
                 <button onClick={handleGuardar} disabled={enviando}
                   style={{ padding:"10px 24px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:enviando?0.7:1 }}>
-                  {enviando?"Guardando...":"✅ Guardar"}
+                  {enviando?"Guardando...":" Guardar"}
                 </button>
               </div>
             </div>
@@ -848,7 +1282,7 @@ export default function InversionPublica({ currentUser = null }) {
 
           {seccion===7 && (
             <div style={sec}>
-              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}>✅ Responsable del Proyecto</p>
+              <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 14px" }}>Responsable del Proyecto</p>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"16px" }}>
                 <div style={{ background:"#f0fdf4", borderRadius:"8px", padding:"14px" }}>
                   <p style={{ fontWeight:"700", fontSize:"12px", color:"#166534", margin:"0 0 10px" }}>Elaboró</p>
@@ -868,7 +1302,7 @@ export default function InversionPublica({ currentUser = null }) {
               <div style={{ display:"flex", gap:"10px", justifyContent:"flex-end", marginTop:"16px" }}>
                 <button onClick={handleGuardar} disabled={enviando}
                   style={{ padding:"11px 28px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", fontSize:"14px", opacity:enviando?0.7:1 }}>
-                  {enviando?"Guardando...":"✅ Guardar CIP completa"}
+                  {enviando?"Guardando...":" Guardar CIP completa"}
                 </button>
               </div>
             </div>
