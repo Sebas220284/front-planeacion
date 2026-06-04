@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react"
+import MapSelector from "./MapSelector"
+import EstadoCIP from "./EstadoCIP"
 
 const ESTADO_COLORS = {
   borrador:  { bg:"#f3f4f6", color:"#374151", label:"Borrador"  },
@@ -704,6 +706,40 @@ const exportarExcel = async (proyectoId) => {
             }
           </p>
         </div>
+        {/* ═══ SECCIÓN ESTADO (arriba de los tabs cuando editando) ═══ */}
+{editando && vista==="detalle" && (
+  <EstadoCIP
+    proyecto={proyectos.find(p=>p.id===editando) || form}
+    currentUser={currentUser}
+    onCambioEstado={(actualizado) => {
+      setProyectos(prev => prev.map(p => p.id===actualizado.id ? {...p,...actualizado} : p))
+      setForm(prev => ({ ...prev, estado:actualizado.estado, comentario_revision:actualizado.comentario_revision }))
+    }}
+  />
+)}
+{["planeacion","admin"].includes(currentUser?.rol) && (
+  (() => {
+    const pendientes = proyectos.filter(p=>p.estado==="enviado")
+    if (pendientes.length === 0) return null
+    return (
+      <div style={{ background:"#fffbeb", border:"1px solid #fcd34d", borderRadius:"10px", padding:"12px 16px", marginBottom:"16px", display:"flex", alignItems:"center", gap:"12px" }}>
+        <span style={{ fontSize:"20px" }}>📬</span>
+        <div>
+          <p style={{ fontWeight:"700", color:"#92400e", margin:"0 0 2px", fontSize:"14px" }}>
+            {pendientes.length} CIP{pendientes.length!==1?"s":""} pendiente{pendientes.length!==1?"s":""} de revisión
+          </p>
+          <p style={{ color:"#78350f", fontSize:"12px", margin:0 }}>
+            {pendientes.map(p=>p.nombre_proyecto).join(", ")}
+          </p>
+        </div>
+        <button onClick={()=>setFiltroEstado("enviado")}
+          style={{ marginLeft:"auto", padding:"6px 14px", background:"#d97706", color:"white", border:"none", borderRadius:"6px", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}>
+          Ver pendientes
+        </button>
+      </div>
+    )
+  })()
+)}
         <div style={{ display:"flex", gap:"8px", flexWrap:"wrap" }}>
           {vista!=="lista" && (
             <button onClick={()=>{ setVista("lista"); setEditando(null); setForm(FORM_VACIO); setCatSubprog([]); setPmdOpciones([]) }}
@@ -1250,35 +1286,59 @@ const exportarExcel = async (proyectoId) => {
             </div>
           )}
 
-          {seccion===6 && (
-            <div>
-              <div style={{ ...sec, background:"#fffbeb", border:"1px solid #fcd34d" }}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 6px" }}> Croquis Macro (Georreferenciación)</p>
-                <p style={{ fontSize:"11px", color:"#92400e", margin:"0 0 12px" }}>
-                  Por ahora ingresa coordenadas manualmente. Puedes obtenerlas desde Google Maps (clic derecho → "¿Qué hay aquí?").
-                </p>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px" }}>
-                  <div><label style={lbl}>Latitud</label><input name="georef_macro_lat" type="number" step="any" value={form.georef_macro_lat||""} onChange={handleChange} style={inp} placeholder="16.7516" /></div>
-                  <div><label style={lbl}>Longitud</label><input name="georef_macro_lng" type="number" step="any" value={form.georef_macro_lng||""} onChange={handleChange} style={inp} placeholder="-93.1040" /></div>
-                  <div><label style={lbl}>Localidad</label><input name="georef_macro_localidad" value={form.georef_macro_localidad||""} onChange={handleChange} style={inp} placeholder="Tuxtla Gutiérrez" /></div>
-                </div>
-              </div>
-              <div style={{ ...sec, background:"#fffbeb", border:"1px solid #fcd34d" }}>
-                <p style={{ fontWeight:"700", fontSize:"13px", color:"#92400e", margin:"0 0 12px" }}> Croquis Micro</p>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"12px" }}>
-                  <div><label style={lbl}>Latitud</label><input name="georef_micro_lat" type="number" step="any" value={form.georef_micro_lat||""} onChange={handleChange} style={inp} /></div>
-                  <div><label style={lbl}>Longitud</label><input name="georef_micro_lng" type="number" step="any" value={form.georef_micro_lng||""} onChange={handleChange} style={inp} /></div>
-                  <div><label style={lbl}>Localidad</label><input name="georef_micro_localidad" value={form.georef_micro_localidad||""} onChange={handleChange} style={inp} /></div>
-                </div>
-              </div>
-              <div style={{ display:"flex", justifyContent:"flex-end" }}>
-                <button onClick={handleGuardar} disabled={enviando}
-                  style={{ padding:"10px 24px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:enviando?0.7:1 }}>
-                  {enviando?"Guardando...":" Guardar"}
-                </button>
-              </div>
-            </div>
-          )}
+         {/* ═══ SECCIÓN 6: GEORREFERENCIACIÓN CON MAPBOX ═══ */}
+{seccion===6 && (
+  <div>
+    {/* Macro */}
+    <div style={sec}>
+      <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>
+        📍 Croquis Macro — Ubicación General
+      </p>
+      <MapSelector
+        lat={form.georef_macro_lat ? Number(form.georef_macro_lat) : undefined}
+        lng={form.georef_macro_lng ? Number(form.georef_macro_lng) : undefined}
+        titulo="Croquis Macro (clic para ubicar)"
+        height={280}
+        onSelect={({ lat, lng }) => {
+          setForm(prev => ({ ...prev, georef_macro_lat:lat, georef_macro_lng:lng }))
+        }}
+      />
+      <div style={{ marginTop:"10px" }}>
+        <label style={lbl}>Localidad / descripción del punto macro</label>
+        <input name="georef_macro_localidad" value={form.georef_macro_localidad||""}
+          onChange={handleChange} style={inp} placeholder="Ej: Tuxtla Gutiérrez, Chiapas" />
+      </div>
+    </div>
+
+    {/* Micro */}
+    <div style={sec}>
+      <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>
+        📍 Croquis Micro — Ubicación Específica
+      </p>
+      <MapSelector
+        lat={form.georef_micro_lat ? Number(form.georef_micro_lat) : undefined}
+        lng={form.georef_micro_lng ? Number(form.georef_micro_lng) : undefined}
+        titulo="Croquis Micro (clic para ubicar)"
+        height={280}
+        onSelect={({ lat, lng }) => {
+          setForm(prev => ({ ...prev, georef_micro_lat:lat, georef_micro_lng:lng }))
+        }}
+      />
+      <div style={{ marginTop:"10px" }}>
+        <label style={lbl}>Localidad / descripción del punto micro</label>
+        <input name="georef_micro_localidad" value={form.georef_micro_localidad||""}
+          onChange={handleChange} style={inp} placeholder="Ej: Calle Libramiento Norte esquina con Blvd. Belisario" />
+      </div>
+    </div>
+
+    <div style={{ display:"flex", justifyContent:"flex-end" }}>
+      <button onClick={handleGuardar} disabled={enviando}
+        style={{ padding:"10px 24px", borderRadius:"8px", background:"#1e40af", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:enviando?0.7:1 }}>
+        {enviando?"Guardando...":"✅ Guardar ubicaciones"}
+      </button>
+    </div>
+  </div>
+)}
 
           {seccion===7 && (
             <div style={sec}>
