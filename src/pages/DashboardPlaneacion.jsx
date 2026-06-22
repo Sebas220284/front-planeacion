@@ -42,7 +42,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
     socket.emit("join_planeacion");
     const fetchData = async () => {
       try {
-        const resDep = await fetch("http://localhost:3000/api/planeacion/dashboard");
+        const resDep = await fetch("http://localhost:3100/api/planeacion/dashboard");
         const data = await resDep.json();
         setDependencias(data);
         if (data.length > 0) setActiva(data[0].id);
@@ -52,14 +52,14 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
           const estrategias = dep.estrategias ? Object.values(dep.estrategias) : [];
           for (const est of estrategias) {
             for (const linea of est.lineas) {
-              const resT = await fetch(`http://localhost:3000/api/trimestres/porLinea/${linea.id}`);
+              const resT = await fetch(`http://localhost:3100/api/trimestres/porLinea/${linea.id}`);
               allTrimestres[linea.id] = await resT.json();
             }
           }
         }
         setTrimestres(allTrimestres);
 
-        const resPend = await fetch("http://localhost:3000/api/lineas/pendientes");
+        const resPend = await fetch("http://localhost:3100/lineas/pendientes");
         const dataPend = await resPend.json();
         setLineasPendientes(dataPend);
       } catch (error) {
@@ -70,7 +70,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
 
     socket.on("nueva_linea_pendiente", (data) => setLineasPendientes((prev) => [data, ...prev]));
     socket.on("trimestre_actualizado", async (data) => {
-      const res = await fetch(`http://localhost:3000/api/trimestres/porLinea/${data.planning_id}`);
+      const res = await fetch(`http://localhost:3100/api/trimestres/porLinea/${data.planning_id}`);
       const t = await res.json();
       setTrimestres((prev) => ({ ...prev, [data.planning_id]: t }));
     });
@@ -96,7 +96,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción?");
     if (!confirmar) return;
     try {
-      const res = await fetch(`http://localhost:3000/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
+      const res = await fetch(`http://localhost:3100/api/lineas/eliminar/${lineaId}`, { method: "DELETE" });
       if (res.ok) {
         setDependencias((prev) =>
           prev.map((dep) => {
@@ -116,7 +116,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
 
   const habilitarPDF = async () => {
     if (!activa) return;
-    await fetch("http://localhost:3000/api/pdf/habilitar", {
+    await fetch("http://localhost:3100/api/pdf/habilitar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -131,7 +131,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
 
   const descargarPDFGlobal = async () => {
     if (!dependencia) return;
-    const res = await fetch(`http://localhost:3000/api/pdf/datos/${dependencia.id}/${filtroPDF.anio}/${filtroPDF.trimestre}`);
+    const res = await fetch(`http://localhost:3100/api/pdf/datos/${dependencia.id}/${filtroPDF.anio}/${filtroPDF.trimestre}`);
     const data = await res.json();
     generarPDF(data, dependencia.name, filtroPDF.anio, filtroPDF.trimestre);
     setModalPDF(false);
@@ -141,7 +141,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
     const lista = trimestres[planning_id] || [];
     const registros = lista.filter((t) => t.anio === anio && t.tipo === tipo);
     for (const t of registros) {
-      await fetch(`http://localhost:3000/api/review/${t.id}`, {
+      await fetch(`http://localhost:3100/api/review/${t.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado, comentario: estado === "rechazado" ? comentarioRechazo : "", dependency_id }),
@@ -234,7 +234,7 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
         <button onClick={() => { setVistaReportes(true); setVistaAlineacion(false); setVistaFichas(false); setActiva(null); }} className={`menu-btn ${vistaReportes ? "active" : ""}`}>📊 Reportes Globales</button>
         <button onClick={() => { setVistaFichas(true); setVistaAlineacion(false); setVistaReportes(false); setActiva(null); }} style={{ marginTop: "8px", background: vistaFichas ? "#854d0e" : "#d97706", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}>📋 Fichas Técnicas</button>
         <button onClick={() => { 
-          fetch("http://localhost:3000/api/pmd/aprobados").then(r => r.json()).then(setEstrategiasPMD);
+          fetch("http://localhost:3100/api/pmd/aprobados").then(r => r.json()).then(setEstrategiasPMD);
           setVistaAlineacion(true); setVistaReportes(false); setVistaFichas(false); setActiva(null);
         }} style={{ marginTop: "8px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}>🎯 Alineación Estratégica</button>
 

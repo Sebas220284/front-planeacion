@@ -51,7 +51,7 @@ export default function TransparenciaSeccion40() {
     cargar()
     const token = localStorage.getItem("token")
     if (token) {
-      fetch("http://localhost:3000/api/auth/me", {
+      fetch("http://localhost:3100/api/auth/me", {
         headers:{ Authorization:`Bearer ${token}` }
       }).then(r=>r.json()).then(setCurrentUser).catch(()=>{})
     }
@@ -60,7 +60,7 @@ export default function TransparenciaSeccion40() {
   const cargar = async () => {
     setCargando(true)
     try {
-      const res  = await fetch("http://localhost:3000/api/transparencia/seccion40")
+      const res  = await fetch("http://localhost:3100/api/transparencia/seccion40")
       const data = await res.json()
       setRegistros(data.map(r => ({
         ...r,
@@ -84,8 +84,8 @@ export default function TransparenciaSeccion40() {
     setEnviando(true)
     try {
       const url = editando
-        ? `http://localhost:3000/api/transparencia/seccion40/${editando}`
-        : "http://localhost:3000/api/transparencia/seccion40"
+        ? `http://localhost:3100/api/transparencia/seccion40/${editando}`
+        : "http://localhost:3100/api/transparencia/seccion40"
       await fetch(url, {
         method: editando ? "PUT" : "POST",
         headers: { "Content-Type":"application/json" },
@@ -100,7 +100,7 @@ export default function TransparenciaSeccion40() {
 
   const handleEliminar = async (id) => {
     if (!window.confirm("¿Eliminar este registro?")) return
-    await fetch(`http://localhost:3000/api/transparencia/seccion40/${id}`, { method:"DELETE" })
+    await fetch(`http://localhost:3100/api/transparencia/seccion40/${id}`, { method:"DELETE" })
     setRegistros(prev => prev.filter(r => r.id!==id))
   }
 

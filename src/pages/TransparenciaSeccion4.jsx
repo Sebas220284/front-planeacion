@@ -41,7 +41,7 @@ export default function TransparenciaSeccion4() {
   const cargar = async () => {
     setCargando(true)
     try {
-      const res = await fetch("http://localhost:3000/api/transparencia/seccion4")
+      const res = await fetch("http://localhost:3100/api/transparencia/seccion4")
       const data = await res.json()
       setDatos(data)
       if (data.config) {
@@ -54,7 +54,7 @@ export default function TransparenciaSeccion4() {
   const guardarConfig = async () => {
     setGuardando(true)
     try {
-      await fetch("http://localhost:3000/api/transparencia/config/4", {
+      await fetch("http://localhost:3100/api/transparencia/config/4", {
         method:"PUT",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify(config)

@@ -23,17 +23,14 @@ export default function MapSelector({
   const [listo,    setListo]    = useState(false)
   const [error,    setError]    = useState(null)
 
-  // Carga Leaflet dinámicamente (evita problemas con React StrictMode)
   useEffect(() => {
     let mounted = true
 
     const initMap = async () => {
       try {
-        // Importa Leaflet dinámicamente
         if (!L) {
           L = (await import("leaflet")).default
 
-          // Corrige el ícono por defecto de Leaflet (problema conocido con Webpack/Vite)
           delete L.Icon.Default.prototype._getIconUrl
           L.Icon.Default.mergeOptions({
             iconUrl:       "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
@@ -42,20 +39,17 @@ export default function MapSelector({
           })
         }
 
-        // Agrega el CSS de Leaflet si no está
         if (!document.getElementById("leaflet-css")) {
           const link = document.createElement("link")
           link.id   = "leaflet-css"
           link.rel  = "stylesheet"
           link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
           document.head.appendChild(link)
-          // Espera a que cargue el CSS
           await new Promise(r => setTimeout(r, 100))
         }
 
         if (!mounted || !mapContainer.current) return
 
-        // Destruye instancia previa si existe
         if (mapRef.current) {
           mapRef.current.remove()
           mapRef.current = null
@@ -64,20 +58,17 @@ export default function MapSelector({
         const initLat = lat || TUXTLA.lat
         const initLng = lng || TUXTLA.lng
 
-        // Crea el mapa
         const map = L.map(mapContainer.current, {
           center: [initLat, initLng],
           zoom:   14,
           zoomControl: true,
         })
 
-        // Capa de OpenStreetMap (totalmente gratuita, sin token)
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
           maxZoom: 19,
         }).addTo(map)
 
-        // Marcador rojo personalizado
         const iconoRojo = L.divIcon({
           html: `<div style="
             width:24px; height:36px; position:relative; cursor:pointer;
@@ -94,7 +85,6 @@ export default function MapSelector({
           popupAnchor: [0, -36],
         })
 
-        // Agrega marcador draggable
         const marker = L.marker([initLat, initLng], {
           draggable: true,
           icon: iconoRojo,
@@ -108,7 +98,6 @@ export default function MapSelector({
           </div>
         `).openPopup()
 
-        // Al arrastrar el marcador
         marker.on("dragend", () => {
           const pos = marker.getLatLng()
           const rounded = {
@@ -125,7 +114,6 @@ export default function MapSelector({
           if (mounted) { setCoords(rounded); onSelect(rounded) }
         })
 
-        // Click en mapa para mover marcador
         map.on("click", (e) => {
           const rounded = {
             lat: Math.round(e.latlng.lat * 1000000) / 1000000,
@@ -162,9 +150,7 @@ export default function MapSelector({
         markerRef.current = null
       }
     }
-  }, []) // Solo en mount
-
-  // Actualiza marcador cuando cambian props externas
+  }, []) 
   useEffect(() => {
     if (!mapRef.current || !markerRef.current) return
     if (lat && lng && (lat !== coords.lat || lng !== coords.lng)) {
@@ -174,7 +160,6 @@ export default function MapSelector({
     }
   }, [lat, lng])
 
-  // Búsqueda con Nominatim (gratuito, sin token)
   const buscarDireccion = async () => {
     if (!busqueda.trim()) return
     setBuscando(true)
@@ -205,7 +190,6 @@ export default function MapSelector({
     setBuscando(false)
   }
 
-  // Si hay error de mapa, muestra fallback con inputs manuales
   if (error) {
     return (
       <div style={{ border:"1px solid #e5e7eb", borderRadius:"10px", overflow:"hidden" }}>
@@ -241,7 +225,6 @@ export default function MapSelector({
   return (
     <div style={{ borderRadius:"10px", overflow:"hidden", border:"1px solid #e5e7eb" }}>
 
-      {/* Header con búsqueda y coordenadas */}
       <div style={{ padding:"10px 12px", background:"#f8fafc", borderBottom:"1px solid #e5e7eb" }}>
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:"10px" }}>
 
@@ -271,7 +254,6 @@ export default function MapSelector({
         </div>
       </div>
 
-      {/* Contenedor del mapa */}
       <div style={{ position:"relative" }}>
         <div ref={mapContainer} style={{ height:`${height}px`, width:"100%" }} />
         {!listo && (
@@ -284,10 +266,9 @@ export default function MapSelector({
         )}
       </div>
 
-      {/* Footer */}
       <div style={{ padding:"6px 12px", background:"#f8fafc", borderTop:"1px solid #e5e7eb", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
         <p style={{ margin:0, fontSize:"10px", color:"#9ca3af" }}>
-          💡 Haz clic en el mapa o arrastra el marcador rojo para ajustar la posición
+           Haz clic en el mapa o arrastra el marcador rojo para ajustar la posición
         </p>
         <p style={{ margin:0, fontSize:"9px", color:"#d1d5db" }}>© OpenStreetMap</p>
       </div>

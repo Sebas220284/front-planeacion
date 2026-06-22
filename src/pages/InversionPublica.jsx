@@ -35,7 +35,7 @@ const FORM_VACIO = {
   elaboro_nombre:"", elaboro_cargo:"", visto_bueno_nombre:"", visto_bueno_cargo:""
 }
 
-const API = "http://localhost:3000/api/cip"
+const API = "http://localhost:3100/api/cip"
 
 export default function InversionPublica({ currentUser = null }) {
   const [vista, setVista]     = useState("lista")
@@ -149,6 +149,68 @@ export default function InversionPublica({ currentUser = null }) {
       strategy_id:          p.strategy_id        || null,
     }))
   }
+function lonLatToTile(lon, lat, zoom) {
+  const n = Math.pow(2, zoom)
+  const x = ((lon + 180) / 360) * n
+  const latRad = (lat * Math.PI) / 180
+  const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n
+  return { x, y }
+}
+
+const obtenerMapaBase64 = async (lat, lng, zoom = 15, width = 500, height = 300) => {
+  if (!lat || !lng) return null
+  try {
+    const TILE_SIZE = 256
+    const centerTile = lonLatToTile(lng, lat, zoom)
+
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext("2d")
+
+    const centerPxX = centerTile.x * TILE_SIZE
+    const centerPxY = centerTile.y * TILE_SIZE
+    const originX = centerPxX - width / 2
+    const originY = centerPxY - height / 2
+
+    const firstTileX = Math.floor(originX / TILE_SIZE)
+    const firstTileY = Math.floor(originY / TILE_SIZE)
+    const lastTileX  = Math.floor((originX + width) / TILE_SIZE)
+    const lastTileY  = Math.floor((originY + height) / TILE_SIZE)
+
+    const promesas = []
+    for (let tx = firstTileX; tx <= lastTileX; tx++) {
+      for (let ty = firstTileY; ty <= lastTileY; ty++) {
+        const url = `https://tile.openstreetmap.org/${zoom}/${tx}/${ty}.png`
+        const px = tx * TILE_SIZE - originX
+        const py = ty * TILE_SIZE - originY
+        promesas.push(
+          new Promise((resolve) => {
+            const img = new Image()
+            img.crossOrigin = "anonymous"
+            img.onload = () => { ctx.drawImage(img, px, py, TILE_SIZE, TILE_SIZE); resolve() }
+            img.onerror = () => resolve()
+            img.src = url
+          })
+        )
+      }
+    }
+    await Promise.all(promesas)
+
+    const cx = width / 2, cy = height / 2
+    ctx.beginPath(); ctx.arc(cx, cy - 8, 8, 0, Math.PI * 2)
+    ctx.fillStyle = "#dc2626"; ctx.fill()
+    ctx.strokeStyle = "#7f1d1d"; ctx.lineWidth = 1.5; ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(cx - 6, cy - 2); ctx.lineTo(cx + 6, cy - 2); ctx.lineTo(cx, cy + 12)
+    ctx.closePath(); ctx.fillStyle = "#dc2626"; ctx.fill()
+
+    return canvas.toDataURL("image/png")
+  } catch (e) {
+    console.error("Error generando mapa con canvas:", e)
+    return null
+  }
+}
 
 const exportarPDF = async (proyectoId) => {
   try {
@@ -323,19 +385,72 @@ const exportarPDF = async (proyectoId) => {
     campo("Tipo de Población:", p.tipo_poblacion||"", 12, y+20, 35, 150)
     y += 26
 
-    if (p.georef_macro_lat || p.georef_micro_lat) {
+   if (p.georef_macro_lat || p.georef_micro_lat) {
+      doc.addPage()
+      y = 15
       y = seccion("11. Georreferenciación", y)
       doc.setFontSize(8)
+
       if (p.georef_macro_lat) {
         campo("Croquis Macro — Lat:", String(p.georef_macro_lat), 12, y+5)
         campo("Lng:", String(p.georef_macro_lng), 80, y+5)
         campo("Localidad:", p.georef_macro_localidad||"", 12, y+10, 25, 165)
+        y += 14
+
+        const mapaMacro = await obtenerMapaBase64(
+          Number(p.georef_macro_lat), Number(p.georef_macro_lng), 14
+        )
+        if (mapaMacro) {
+          const imgW = W - 24
+          const imgH = imgW * (300/500) 
+          doc.rect(12, y, imgW, imgH) 
+          doc.addImage(mapaMacro, "PNG", 12, y, imgW, imgH)
+          y += imgH + 4
+          doc.setFontSize(6.5); doc.setTextColor(150,150,150)
+          doc.text("Fuente: OpenStreetMap", 12, y)
+          doc.setTextColor(0,0,0); doc.setFontSize(8)
+          y += 8
+        } else {
+          doc.setFontSize(7.5); doc.setTextColor(150,150,150)
+          doc.text("No se pudo cargar la imagen del mapa macro", 12, y+4)
+          doc.setTextColor(0,0,0)
+          y += 10
+        }
       }
+
+      if (y > 200) { doc.addPage(); y = 15 }
+
       if (p.georef_micro_lat) {
-        campo("Croquis Micro — Lat:", String(p.georef_micro_lat), 12, y+16)
-        campo("Lng:", String(p.georef_micro_lng), 80, y+16)
+        doc.setFontSize(8)
+        campo("Croquis Micro — Lat:", String(p.georef_micro_lat), 12, y+5)
+        campo("Lng:", String(p.georef_micro_lng), 80, y+5)
+        if (p.georef_micro_localidad) {
+          campo("Localidad:", p.georef_micro_localidad||"", 12, y+10, 25, 165)
+          y += 14
+        } else {
+          y += 8
+        }
+
+        const mapaMicro = await obtenerMapaBase64(
+          Number(p.georef_micro_lat), Number(p.georef_micro_lng), 17
+        )
+        if (mapaMicro) {
+          const imgW = W - 24
+          const imgH = imgW * (300/500)
+          doc.rect(12, y, imgW, imgH)
+          doc.addImage(mapaMicro, "PNG", 12, y, imgW, imgH)
+          y += imgH + 4
+          doc.setFontSize(6.5); doc.setTextColor(150,150,150)
+          doc.text("Fuente: OpenStreetMap", 12, y)
+          doc.setTextColor(0,0,0); doc.setFontSize(8)
+          y += 8
+        } else {
+          doc.setFontSize(7.5); doc.setTextColor(150,150,150)
+          doc.text("No se pudo cargar la imagen del mapa micro", 12, y+4)
+          doc.setTextColor(0,0,0)
+          y += 10
+        }
       }
-      y += 22
     }
 
     if (y > 230) { doc.addPage(); y = 15 }
@@ -354,7 +469,7 @@ const exportarPDF = async (proyectoId) => {
     doc.text(p.visto_bueno_cargo||"Nombre del Titular de la Dependencia", W-52, firmaY+9, { align:"center" })
     doc.setFontSize(7.5); doc.setFont("helvetica","bold")
     doc.text("Elaboró", 52, firmaY+14, { align:"center" })
-    doc.text("Visto Bueno", W-52, firmaY+14, { align:"center" })
+    doc.text("", W-52, firmaY+14, { align:"center" })
 
     const totalPags = doc.internal.getNumberOfPages()
     for (let i=1; i<=totalPags; i++) {
@@ -706,7 +821,7 @@ const exportarExcel = async (proyectoId) => {
             }
           </p>
         </div>
-        {/* ═══ SECCIÓN ESTADO (arriba de los tabs cuando editando) ═══ */}
+      
 {editando && vista==="detalle" && (
   <EstadoCIP
     proyecto={proyectos.find(p=>p.id===editando) || form}
@@ -1286,10 +1401,9 @@ const exportarExcel = async (proyectoId) => {
             </div>
           )}
 
-         {/* ═══ SECCIÓN 6: GEORREFERENCIACIÓN CON MAPBOX ═══ */}
+         
 {seccion===6 && (
   <div>
-    {/* Macro */}
     <div style={sec}>
       <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>
         📍 Croquis Macro — Ubicación General
@@ -1310,7 +1424,6 @@ const exportarExcel = async (proyectoId) => {
       </div>
     </div>
 
-    {/* Micro */}
     <div style={sec}>
       <p style={{ fontWeight:"700", fontSize:"13px", color:"#374151", margin:"0 0 12px" }}>
         📍 Croquis Micro — Ubicación Específica
