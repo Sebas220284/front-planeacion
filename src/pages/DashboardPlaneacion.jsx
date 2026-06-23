@@ -8,7 +8,7 @@ import TransparenciaSeccion4 from "./TransparenciaSeccion4"
 import TransparenciaSeccion5 from "./TransparenciaSeccion5"
 import TransparenciaSeccion6 from "./TransparenciaSeccion6"
 import TransparenciaSeccion40 from "./TransparenciaSeccion40"
-
+import ExportarGlobalModal from "./ExportarGlobalModal"
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -32,7 +32,7 @@ export default function DashboardPlaneacion() {
   const [vistaFichas, setVistaFichas] = useState(false);
   const [filtroEstrategia, setFiltroEstrategia] = useState("todas");
 const [vistaTransparencia, setVistaTransparencia] = useState(null)
-
+const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
   const navigate = useNavigate();
   const años = [2025, 2026];
 
@@ -321,7 +321,18 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
                     >
                       {a}
                     </button>
+                    
                   ))}
+                  <button
+  onClick={() => setModalExportarGlobal(true)}
+  style={{
+    background:"#7c3aed", color:"white", border:"none", borderRadius:"8px",
+    padding:"10px 18px", fontSize:"13px", fontWeight:"600", cursor:"pointer",
+    display:"flex", alignItems:"center", gap:"6px"
+  }}
+>
+  📊 Exportar Global (Programado vs Ejecutado)
+</button>
                 </div>
               </div>
             </div>
@@ -417,7 +428,9 @@ const [vistaTransparencia, setVistaTransparencia] = useState(null)
           </div>
         </div>
       )}
-
+{modalExportarGlobal && (
+  <ExportarGlobalModal onClose={()=>setModalExportarGlobal(false)} />
+)}
       {modalRechazar && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
