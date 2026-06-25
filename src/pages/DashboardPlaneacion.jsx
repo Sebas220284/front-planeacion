@@ -35,14 +35,13 @@ export default function DashboardPlaneacion() {
   const [vistaTransparencia, setVistaTransparencia] = useState(null)
   const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
   const [vistaUsuarios, setVistaUsuarios] = useState(false)
-  const [currentUser, setCurrentUser] = useState(null) // ← NUEVO: faltaba
+  const [currentUser, setCurrentUser] = useState(null) 
 
   const navigate = useNavigate();
   const años = [2025, 2026];
 
   const dependencia = dependencias.find((d) => d.id === activa);
 
-  // ── Carga el usuario actual (rol, id, etc.) ──
   useEffect(() => {
     const token = localStorage.getItem("token")
     if (!token) return
@@ -108,7 +107,6 @@ export default function DashboardPlaneacion() {
     setFiltroEstrategia("todas");
   }, [activa]);
 
-  // ── Helper: resetea todas las vistas y activa solo una ──
   const irA = (vista) => {
     setVistaReportes(vista === "reportes")
     setVistaFichas(vista === "fichas")
@@ -282,7 +280,7 @@ export default function DashboardPlaneacion() {
           🎯 Alineación Estratégica
         </button>
 
-        {/* ── BOTÓN NUEVO: Gestión de Usuarios (solo admin/planeación) ── */}
+       
         
           <button
             onClick={() => { setVistaUsuarios(true); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaTransparencia(null); setActiva(null); }}
@@ -338,10 +336,7 @@ export default function DashboardPlaneacion() {
         </div>
       </div>
 
-      {/* ════════════════════════════════════════════
-          CONTENIDO PRINCIPAL — un solo bloque condicional
-          (antes estaba duplicado, ya quedó limpio)
-      ════════════════════════════════════════════ */}
+     
       <div className="contenido">
 
         {vistaUsuarios ? (
@@ -402,7 +397,7 @@ export default function DashboardPlaneacion() {
                     </button>
                   ))}
 
-                  {/* ── BOTÓN NUEVO: Exportar reporte global ── */}
+                
                   <button
                     onClick={() => setModalExportarGlobal(true)}
                     style={{
@@ -486,7 +481,6 @@ export default function DashboardPlaneacion() {
         )}
       </div>
 
-      {/* ── MODALES (sin cambios) ── */}
       {modalPDF && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
