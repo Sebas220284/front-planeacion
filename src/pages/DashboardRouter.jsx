@@ -4,7 +4,7 @@ import DashboardPlaneacion from "./DashboardPlaneacion";
 import DashboardDependencias from "./DashboardDependencias";
 import DashboardEstrategica from "./DashboardEstrategica"
 import DashboardAdmin from "./DashboardAdmin";
-import InversionPublica from "./InversionPublica"
+//import InversionPublica from "./InversionPublica"
 import "../styles/selectorModulos.css";
 
 const MODULOS_POR_ROL = {

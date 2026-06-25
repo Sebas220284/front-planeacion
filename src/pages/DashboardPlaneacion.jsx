@@ -9,6 +9,7 @@ import TransparenciaSeccion5 from "./TransparenciaSeccion5"
 import TransparenciaSeccion6 from "./TransparenciaSeccion6"
 import TransparenciaSeccion40 from "./TransparenciaSeccion40"
 import ExportarGlobalModal from "./ExportarGlobalModal"
+import GestionUsers from "./GestionUsers"
 import "../styles/dashboardPlaneacion.css";
 
 export default function DashboardPlaneacion() {
@@ -31,12 +32,27 @@ export default function DashboardPlaneacion() {
   const [vistaReportes, setVistaReportes] = useState(false);
   const [vistaFichas, setVistaFichas] = useState(false);
   const [filtroEstrategia, setFiltroEstrategia] = useState("todas");
-const [vistaTransparencia, setVistaTransparencia] = useState(null)
-const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
+  const [vistaTransparencia, setVistaTransparencia] = useState(null)
+  const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
+  const [vistaUsuarios, setVistaUsuarios] = useState(false)
+  const [currentUser, setCurrentUser] = useState(null) // ← NUEVO: faltaba
+
   const navigate = useNavigate();
   const años = [2025, 2026];
 
   const dependencia = dependencias.find((d) => d.id === activa);
+
+  // ── Carga el usuario actual (rol, id, etc.) ──
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (!token) return
+    fetch("http://localhost:3100/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => setCurrentUser(data))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     socket.emit("join_planeacion");
@@ -91,6 +107,16 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
   useEffect(() => {
     setFiltroEstrategia("todas");
   }, [activa]);
+
+  // ── Helper: resetea todas las vistas y activa solo una ──
+  const irA = (vista) => {
+    setVistaReportes(vista === "reportes")
+    setVistaFichas(vista === "fichas")
+    setVistaAlineacion(vista === "alineacion")
+    setVistaUsuarios(vista === "usuarios")
+    setVistaTransparencia(vista.startsWith?.("s") ? vista : (vista === "dependencias" ? null : (typeof vista === "string" && vista.startsWith("trans_") ? vista.replace("trans_","") : null)))
+    if (vista !== "dependencias") setActiva(null)
+  }
 
   const eliminarLineaDeAccion = async (lineaId) => {
     const confirmar = window.confirm("¿Estás seguro de que deseas eliminar esta línea de acción?");
@@ -231,70 +257,123 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
     <div className="layout">
       <div className="sidebar">
         <h2 className="logo">Planeación</h2>
-        <button onClick={() => { setVistaReportes(true); setVistaAlineacion(false); setVistaFichas(false); setActiva(null); }} className={`menu-btn ${vistaReportes ? "active" : ""}`}>📊 Reportes Globales</button>
-        <button onClick={() => { setVistaFichas(true); setVistaAlineacion(false); setVistaReportes(false); setActiva(null); }} style={{ marginTop: "8px", background: vistaFichas ? "#854d0e" : "#d97706", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}>📋 Fichas Técnicas</button>
-        <button onClick={() => { 
-          fetch("http://localhost:3100/api/pmd/aprobados").then(r => r.json()).then(setEstrategiasPMD);
-          setVistaAlineacion(true); setVistaReportes(false); setVistaFichas(false); setActiva(null);
-        }} style={{ marginTop: "8px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}>🎯 Alineación Estratégica</button>
+
+        <button
+          onClick={() => { setVistaReportes(true); setVistaAlineacion(false); setVistaFichas(false); setVistaUsuarios(false); setVistaTransparencia(null); setActiva(null); }}
+          className={`menu-btn ${vistaReportes ? "active" : ""}`}
+        >
+          📊 Reportes Globales
+        </button>
+
+        <button
+          onClick={() => { setVistaFichas(true); setVistaAlineacion(false); setVistaReportes(false); setVistaUsuarios(false); setVistaTransparencia(null); setActiva(null); }}
+          style={{ marginTop: "8px", background: vistaFichas ? "#854d0e" : "#d97706", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}
+        >
+          📋 Fichas Técnicas
+        </button>
+
+        <button
+          onClick={() => {
+            fetch("http://localhost:3100/api/pmd/aprobados").then(r => r.json()).then(setEstrategiasPMD);
+            setVistaAlineacion(true); setVistaReportes(false); setVistaFichas(false); setVistaUsuarios(false); setVistaTransparencia(null); setActiva(null);
+          }}
+          style={{ marginTop: "8px", background: vistaAlineacion ? "#5b21b6" : "#7c3aed", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer" }}
+        >
+          🎯 Alineación Estratégica
+        </button>
+
+        {/* ── BOTÓN NUEVO: Gestión de Usuarios (solo admin/planeación) ── */}
+        
+          <button
+            onClick={() => { setVistaUsuarios(true); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaTransparencia(null); setActiva(null); }}
+            style={{ marginTop: "8px", background: vistaUsuarios ? "#1e3a8a" : "#1e40af", color: "white", border: "none", borderRadius: "8px", padding: "12px", width: "100%", cursor: "pointer", fontWeight: "600" }}
+          >
+            👤 Gestión de Usuarios
+          </button>
+        
 
         <div style={{ margin: "15px 0", borderBottom: "1px solid #334155" }} />
+
         <button className="menu-btn" onClick={() => setOpenDependencias(!openDependencias)}>🏢 Dependencias {openDependencias ? "▲" : "▼"}</button>
         <div className={`submenu ${openDependencias ? "open" : ""}`}>
           {dependencias.map((dep) => (
-            <button key={dep.id} className={`dep-item ${dep.id === activa && !vistaAlineacion && !vistaReportes && !vistaFichas ? "active" : ""}`} onClick={() => { setActiva(dep.id); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); }}>{dep.name}</button>
+            <button
+              key={dep.id}
+              className={`dep-item ${dep.id === activa && !vistaAlineacion && !vistaReportes && !vistaFichas && !vistaUsuarios && !vistaTransparencia ? "active" : ""}`}
+              onClick={() => { setActiva(dep.id); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaUsuarios(false); setVistaTransparencia(null); }}
+            >
+              {dep.name}
+            </button>
           ))}
         </div>
+
         <button className="logout-btn" onClick={() => { localStorage.removeItem("token"); navigate("/"); }}>Cerrar sesión</button>
-      <div style={{ marginTop:"8px" }}>
-  <p style={{ fontSize:"10px", color:"#94a3b8", margin:"0 0 4px 6px", fontWeight:"600" }}>🔍 TRANSPARENCIA</p>
-  <button onClick={()=>{ setVistaTransparencia("s4"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
-    style={{ background:vistaTransparencia==="s4"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginBottom:"4px" }}>
-    Sección 4 (F4)
-  </button>
-  <button onClick={()=>{ setVistaTransparencia("s5"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
-    style={{ background:vistaTransparencia==="s5"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}>
-    Sección 5 (F5)
-  </button>
-  <button onClick={()=>{ setVistaTransparencia("s6"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
-  style={{ background:vistaTransparencia==="s6"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginTop:"4px" }}>
-  Sección 6 (F6)
-</button>
-<button
-  onClick={()=>{ setVistaTransparencia("s40"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setActiva(null) }}
-  style={{ background:vistaTransparencia==="s40"?"#065f46":"#059669", color:"white", border:"none", borderRadius:"8px", padding:"8px 12px", width:"100%", cursor:"pointer", fontSize:"12px", fontWeight:"600", marginTop:"4px" }}
->
-  Sección 40 (Art.70)
-</button>  
-</div>
+
+        <div style={{ marginTop: "8px" }}>
+          <p style={{ fontSize: "10px", color: "#94a3b8", margin: "0 0 4px 6px", fontWeight: "600" }}>🔍 TRANSPARENCIA</p>
+          <button
+            onClick={() => { setVistaTransparencia("s4"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaUsuarios(false); setActiva(null) }}
+            style={{ background: vistaTransparencia === "s4" ? "#065f46" : "#059669", color: "white", border: "none", borderRadius: "8px", padding: "8px 12px", width: "100%", cursor: "pointer", fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}
+          >
+            Sección 4 (F4)
+          </button>
+          <button
+            onClick={() => { setVistaTransparencia("s5"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaUsuarios(false); setActiva(null) }}
+            style={{ background: vistaTransparencia === "s5" ? "#065f46" : "#059669", color: "white", border: "none", borderRadius: "8px", padding: "8px 12px", width: "100%", cursor: "pointer", fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}
+          >
+            Sección 5 (F5)
+          </button>
+          <button
+            onClick={() => { setVistaTransparencia("s6"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaUsuarios(false); setActiva(null) }}
+            style={{ background: vistaTransparencia === "s6" ? "#065f46" : "#059669", color: "white", border: "none", borderRadius: "8px", padding: "8px 12px", width: "100%", cursor: "pointer", fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}
+          >
+            Sección 6 (F6)
+          </button>
+          <button
+            onClick={() => { setVistaTransparencia("s40"); setVistaAlineacion(false); setVistaReportes(false); setVistaFichas(false); setVistaUsuarios(false); setActiva(null) }}
+            style={{ background: vistaTransparencia === "s40" ? "#065f46" : "#059669", color: "white", border: "none", borderRadius: "8px", padding: "8px 12px", width: "100%", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}
+          >
+            Sección 40 (Art.70)
+          </button>
+        </div>
       </div>
 
+      {/* ════════════════════════════════════════════
+          CONTENIDO PRINCIPAL — un solo bloque condicional
+          (antes estaba duplicado, ya quedó limpio)
+      ════════════════════════════════════════════ */}
       <div className="contenido">
-   {vistaTransparencia==="s6" ? <TransparenciaSeccion6 /> :
- vistaTransparencia==="s5" ? <TransparenciaSeccion5 /> :
- vistaTransparencia==="s4" ? <TransparenciaSeccion4 /> :
- vistaTransparencia==="s40" ? <TransparenciaSeccion40 />:
 
+        {vistaUsuarios ? (
+          <GestionUsers dependencias={dependencias} currentUser={currentUser} />
 
- vistaFichas ? <FichasTecnicas dependencias={dependencias} /> :
- vistaReportes ? <ReportesPlaneacion /> :
- vistaAlineacion ? renderAlineacion() : <></>
-}
-        {vistaReportes ? (
-          <ReportesPlaneacion />
+        ) : vistaTransparencia === "s4" ? (
+          <TransparenciaSeccion4 />
+        ) : vistaTransparencia === "s5" ? (
+          <TransparenciaSeccion5 />
+        ) : vistaTransparencia === "s6" ? (
+          <TransparenciaSeccion6 />
+        ) : vistaTransparencia === "s40" ? (
+          <TransparenciaSeccion40 />
+
         ) : vistaFichas ? (
           <FichasTecnicas dependencias={dependencias} />
+
+        ) : vistaReportes ? (
+          <ReportesPlaneacion />
+
         ) : vistaAlineacion ? (
           renderAlineacion()
+
         ) : (
           <>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
               <h2 className="titulo">{dependencia ? dependencia.name : "Selecciona una dependencia"}</h2>
-              
+
               <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
                 {dependencia && (
-                  <select 
-                    value={filtroEstrategia} 
+                  <select
+                    value={filtroEstrategia}
                     onChange={(e) => setFiltroEstrategia(e.target.value)}
                     style={{ padding: "10px", borderRadius: "8px", border: "1px solid #cbd5e1", fontSize: "14px", background: "white", color: "#000" }}
                   >
@@ -303,7 +382,7 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
                   </select>
                 )}
 
-                <div style={{ display: "flex", gap: "10px", background: "#f3f4f6", padding: "5px", borderRadius: "12px" }}>
+                <div style={{ display: "flex", gap: "10px", background: "#f3f4f6", padding: "5px", borderRadius: "12px", alignItems: "center" }}>
                   {años.map((a) => (
                     <button
                       key={a}
@@ -321,18 +400,19 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
                     >
                       {a}
                     </button>
-                    
                   ))}
+
+                  {/* ── BOTÓN NUEVO: Exportar reporte global ── */}
                   <button
-  onClick={() => setModalExportarGlobal(true)}
-  style={{
-    background:"#7c3aed", color:"white", border:"none", borderRadius:"8px",
-    padding:"10px 18px", fontSize:"13px", fontWeight:"600", cursor:"pointer",
-    display:"flex", alignItems:"center", gap:"6px"
-  }}
->
-  📊 Exportar Global (Programado vs Ejecutado)
-</button>
+                    onClick={() => setModalExportarGlobal(true)}
+                    style={{
+                      background: "#7c3aed", color: "white", border: "none", borderRadius: "8px",
+                      padding: "10px 18px", fontSize: "13px", fontWeight: "600", cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: "6px"
+                    }}
+                  >
+                    📊 Exportar Global (Programado vs Ejecutado)
+                  </button>
                 </div>
               </div>
             </div>
@@ -364,6 +444,7 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
                               </td>
                             </tr>
                           )}
+
                           {est.lineas.map((linea) => (
                             <tr key={linea.id}>
                               <td style={{ textAlign: "center" }}><button onClick={() => eliminarLineaDeAccion(linea.id)} style={{ background: "#fee2e2", color: "#dc2626", border: "none", padding: "8px", borderRadius: "8px", cursor: "pointer" }}>🗑️</button></td>
@@ -378,7 +459,7 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
                                   <td>
                                     <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "center" }}>
                                       <EstadoBadge estado={getEstadoRevision(linea.id, anioFiltro, tipo)} />
-                                      <div style={{ display: "flex", gap: "5px" }}> 
+                                      <div style={{ display: "flex", gap: "5px" }}>
                                         <button className="btn-tabla btn-aprobar" onClick={() => revisarTrimestre(linea.id, anioFiltro, tipo, "aprobado", dependencia.id)}>Ok</button>
                                         <button className="btn-tabla btn-rechazar" onClick={() => setModalRechazar({ id: linea.id, anio: anioFiltro, tipo })}>X</button>
                                       </div>
@@ -394,7 +475,7 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
                   </table>
                 </div>
               </div>
-            ) : dependencia && <div className="card" style={{padding: "50px", textAlign: "center", color: "#94a3b8", fontSize: "18px"}}>No hay líneas de acción para mostrar.</div>}
+            ) : dependencia && <div className="card" style={{ padding: "50px", textAlign: "center", color: "#94a3b8", fontSize: "18px" }}>No hay líneas de acción para mostrar.</div>}
 
             {dependencia && (
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "30px" }}>
@@ -405,19 +486,20 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
         )}
       </div>
 
+      {/* ── MODALES (sin cambios) ── */}
       {modalPDF && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
             <h3 style={{ marginBottom: "20px" }}>Configurar Exportación PDF</h3>
             <div style={{ marginBottom: "15px" }}>
               <label style={{ display: "block", marginBottom: "5px", fontSize: "14px" }}>Año:</label>
-              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroPDF.anio} onChange={e => setFiltroPDF({...filtroPDF, anio: Number(e.target.value)})}>
+              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroPDF.anio} onChange={e => setFiltroPDF({ ...filtroPDF, anio: Number(e.target.value) })}>
                 {años.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: "25px" }}>
               <label style={{ display: "block", marginBottom: "5px", fontSize: "14px" }}>Trimestre:</label>
-              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroPDF.trimestre} onChange={e => setFiltroPDF({...filtroPDF, trimestre: Number(e.target.value)})}>
+              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroPDF.trimestre} onChange={e => setFiltroPDF({ ...filtroPDF, trimestre: Number(e.target.value) })}>
                 <option value={1}>Trimestre 1</option><option value={2}>Trimestre 2</option><option value={3}>Trimestre 3</option><option value={4}>Trimestre 4</option>
               </select>
             </div>
@@ -428,9 +510,11 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
           </div>
         </div>
       )}
-{modalExportarGlobal && (
-  <ExportarGlobalModal onClose={()=>setModalExportarGlobal(false)} />
-)}
+
+      {modalExportarGlobal && (
+        <ExportarGlobalModal onClose={() => setModalExportarGlobal(false)} />
+      )}
+
       {modalRechazar && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ padding: "30px", borderRadius: "20px", width: "400px" }}>
@@ -455,13 +539,13 @@ const [modalExportarGlobal, setModalExportarGlobal] = useState(false)
             <h3 style={{ marginBottom: "20px" }}>Habilitar Envío de PDF</h3>
             <div style={{ marginBottom: "15px" }}>
               <label style={{ display: "block", marginBottom: "5px" }}>Seleccionar Año:</label>
-              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroHabilitar.anio} onChange={e => setFiltroHabilitar({...filtroHabilitar, anio: Number(e.target.value)})}>
+              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroHabilitar.anio} onChange={e => setFiltroHabilitar({ ...filtroHabilitar, anio: Number(e.target.value) })}>
                 {años.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: "20px" }}>
               <label style={{ display: "block", marginBottom: "5px" }}>Seleccionar Periodo:</label>
-              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroHabilitar.trimestre ?? ""} onChange={e => setFiltroHabilitar({...filtroHabilitar, trimestre: e.target.value === "" ? null : Number(e.target.value)})}>
+              <select style={{ width: "100%", padding: "10px", borderRadius: "8px" }} value={filtroHabilitar.trimestre ?? ""} onChange={e => setFiltroHabilitar({ ...filtroHabilitar, trimestre: e.target.value === "" ? null : Number(e.target.value) })}>
                 <option value="">Todo el Año (POA)</option>
                 <option value={1}>Trimestre 1</option><option value={2}>Trimestre 2</option><option value={3}>Trimestre 3</option><option value={4}>Trimestre 4</option>
               </select>
