@@ -20,6 +20,9 @@ export default function GestionUsers({ dependencias = [], currentUser = null }) 
   const [nuevaPassword, setNuevaPassword] = useState("")
   const [confirmarPassword, setConfirmarPassword] = useState("")
   const [enviandoPassword, setEnviandoPassword] = useState(false)
+  const [modalAsignar, setModalAsignar] = useState(null)
+const [depsAsignadas, setDepsAsignadas] = useState([])
+const [guardandoAsig, setGuardandoAsig] = useState(false)
 
   const API = "http://localhost:3100/api/usuarios"
 
@@ -37,6 +40,52 @@ export default function GestionUsers({ dependencias = [], currentUser = null }) 
     } catch(e) { console.error(e) }
     setCargando(false)
   }
+  const abrirModalAsignar = async (u) => {
+  setModalAsignar(u)
+  try {
+    const res = await fetch(`http://localhost:3100/api/asignaciones/usuario/${u.id}`)
+    const data = await res.json()
+    setDepsAsignadas(data.map(d => d.id))
+  } catch(e) { setDepsAsignadas([]) }
+}
+const toggleDependencia = (depId) => {
+  setDepsAsignadas(prev =>
+    prev.includes(depId) ? prev.filter(id => id !== depId) : [...prev, depId]
+  )
+}
+
+const guardarAsignacion = async () => {
+  setGuardandoAsig(true)
+  try {
+    const res = await fetch(`http://localhost:3100/api/asignaciones/asignar`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        user_id: modalAsignar.id,
+        dependency_ids: depsAsignadas,
+        asignado_por: currentUser?.id || null
+      })
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error)
+    alert(`✅ ${depsAsignadas.length} dependencia(s) asignada(s) a ${modalAsignar.name}`)
+    setModalAsignar(null)
+    await cargar() 
+  } catch(e) { alert("Error: " + e.message) }
+  setGuardandoAsig(false)
+}
+
+const quitarTodasAsignaciones = async () => {
+  if (!window.confirm(`¿Quitar restricción de "${modalAsignar.name}"? Verá TODAS las dependencias.`)) return
+  setGuardandoAsig(true)
+  try {
+    await fetch(`http://localhost:3100/api/asignaciones/usuario/${modalAsignar.id}`, { method:"DELETE" })
+    alert("✅ Restricción removida — el usuario ahora ve todas las dependencias")
+    setModalAsignar(null)
+    await cargar()
+  } catch(e) { alert("Error: " + e.message) }
+  setGuardandoAsig(false)
+}
 
   const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
@@ -219,6 +268,19 @@ export default function GestionUsers({ dependencias = [], currentUser = null }) 
                               style={{ background:"#fee2e2", color:"#dc2626", border:"none", borderRadius:"6px", padding:"6px 10px", cursor:"pointer", fontSize:"11px" }}>
                               🗑️
                             </button>
+                            <button onClick={()=>abrirModalAsignar(u)}
+  style={{ background:"#ede9fe", color:"#6d28d9", border:"none", borderRadius:"6px", padding:"6px 10px", cursor:"pointer", fontSize:"11px", fontWeight:"600" }}>
+  🏢 Dependencias
+</button>
+<td style={{ padding:"10px 14px", color:"#374151", fontSize:"12px" }}>
+  {u.acceso_restringido ? (
+    <span style={{ background:"#fef3c7", color:"#92400e", padding:"3px 8px", borderRadius:"6px", fontWeight:"600" }}>
+      🔒 Acceso restringido
+    </span>
+  ) : (
+    <span style={{ color:"#16a34a", fontWeight:"600" }}>✅ Ve todas</span>
+  )}
+</td>
                           </div>
                         </td>
                       </tr>
@@ -231,7 +293,6 @@ export default function GestionUsers({ dependencias = [], currentUser = null }) 
         </>
       )}
 
-      {/* ── FORM CREAR/EDITAR ── */}
       {vista==="form" && (
         <div style={{ background:"white", borderRadius:"12px", padding:"24px", maxWidth:"640px", margin:"0 auto", border:"1px solid #e5e7eb" }}>
           <h3 style={{ margin:"0 0 20px", color:"#1e293b" }}>{editando ? "✏️ Editar usuario" : "✨ Nuevo usuario"}</h3>
@@ -303,7 +364,6 @@ export default function GestionUsers({ dependencias = [], currentUser = null }) 
         </div>
       )}
 
-      {/* ── MODAL CAMBIAR CONTRASEÑA ── */}
       {modalPassword && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }}>
           <div style={{ background:"white", borderRadius:"14px", padding:"24px", width:"100%", maxWidth:"420px", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
@@ -340,6 +400,62 @@ export default function GestionUsers({ dependencias = [], currentUser = null }) 
           </div>
         </div>
       )}
+      {modalAsignar && (
+  <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000, padding:"20px" }}>
+    <div style={{ background:"white", borderRadius:"14px", width:"100%", maxWidth:"500px", maxHeight:"80vh", display:"flex", flexDirection:"column", boxShadow:"0 25px 60px rgba(0,0,0,0.3)" }}>
+
+      <div style={{ padding:"20px 24px", borderBottom:"1px solid #e5e7eb" }}>
+        <h3 style={{ margin:"0 0 4px", color:"#1e293b" }}>🏢 Asignar Dependencias</h3>
+        <p style={{ margin:0, fontSize:"13px", color:"#6b7280" }}>
+          Usuario: <b style={{ color:"#374151" }}>{modalAsignar.name}</b> ({modalAsignar.email})
+        </p>
+      </div>
+
+      <div style={{ padding:"16px 24px", flex:1, overflowY:"auto" }}>
+        <p style={{ fontSize:"12px", color:"#6b7280", margin:"0 0 12px" }}>
+          Selecciona las dependencias que este usuario podrá ver y revisar. Si no seleccionas ninguna, el usuario verá <b>todas</b> las dependencias.
+        </p>
+
+        <div style={{ display:"flex", flexDirection:"column", gap:"6px" }}>
+          {dependencias.map(d => (
+            <label key={d.id} style={{
+              display:"flex", alignItems:"center", gap:"10px", padding:"10px 12px",
+              background: depsAsignadas.includes(d.id) ? "#ede9fe" : "#f9fafb",
+              border:`1px solid ${depsAsignadas.includes(d.id) ? "#c4b5fd" : "#e5e7eb"}`,
+              borderRadius:"8px", cursor:"pointer"
+            }}>
+              <input
+                type="checkbox"
+                checked={depsAsignadas.includes(d.id)}
+                onChange={()=>toggleDependencia(d.id)}
+              />
+              <span style={{ fontSize:"13px", fontWeight: depsAsignadas.includes(d.id)?"600":"400", color:"#374151" }}>
+                {d.name}
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding:"16px 24px", borderTop:"1px solid #e5e7eb", display:"flex", gap:"10px", justifyContent:"space-between" }}>
+        <button onClick={quitarTodasAsignaciones} disabled={guardandoAsig}
+          style={{ padding:"9px 16px", borderRadius:"8px", border:"1px solid #fecaca", background:"white", color:"#dc2626", cursor:"pointer", fontSize:"12px", fontWeight:"600" }}>
+          🔓 Quitar restricción (ver todas)
+        </button>
+        <div style={{ display:"flex", gap:"10px" }}>
+          <button onClick={()=>setModalAsignar(null)}
+            style={{ padding:"9px 18px", borderRadius:"8px", border:"1px solid #d1d5db", cursor:"pointer", background:"white" }}>
+            Cancelar
+          </button>
+          <button onClick={guardarAsignacion} disabled={guardandoAsig}
+            style={{ padding:"9px 22px", borderRadius:"8px", background:"#6d28d9", color:"white", border:"none", cursor:"pointer", fontWeight:"600", opacity:guardandoAsig?0.7:1 }}>
+            {guardandoAsig ? "Guardando..." : `✅ Guardar (${depsAsignadas.length})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }

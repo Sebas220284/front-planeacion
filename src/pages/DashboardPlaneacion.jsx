@@ -57,7 +57,8 @@ export default function DashboardPlaneacion() {
     socket.emit("join_planeacion");
     const fetchData = async () => {
       try {
-        const resDep = await fetch("http://localhost:3100/api/planeacion/dashboard");
+       const userId = currentUser?.id
+const resDep = await fetch(`http://localhost:3100/api/planeacion/dashboard${userId ? `?user_id=${userId}` : ""}`);
         const data = await resDep.json();
         setDependencias(data);
         if (data.length > 0) setActiva(data[0].id);
