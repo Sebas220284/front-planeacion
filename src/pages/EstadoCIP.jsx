@@ -22,7 +22,7 @@ export default function EstadoCIP({ proyecto, currentUser, onCambioEstado }) {
   const cambiar = async (nuevoEstado, comentarioExtra = "") => {
     setProcesando(true)
     try {
-      const res = await fetch(`http://localhost:3001/api/cip/${proyecto.id}/estado`, {
+      const res = await fetch(`http://localhost:3100/api/cip/${proyecto.id}/estado`, {
         method:"PUT",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({

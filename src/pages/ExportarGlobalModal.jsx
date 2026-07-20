@@ -8,7 +8,7 @@ export default function ExportarGlobalModal({ onClose }) {
   const [exportando, setExportando] = useState(false)
 
   useEffect(() => {
-    fetch("http://localhost:3001/api/reportes/anios-disponibles")
+    fetch("http://localhost:3100/api/reportes/anios-disponibles")
       .then(r=>r.json())
       .then(data => {
         const lista = Array.isArray(data) && data.length ? data : [new Date().getFullYear()]
@@ -23,7 +23,7 @@ export default function ExportarGlobalModal({ onClose }) {
   const cargarDatos = async () => {
     setCargando(true)
     try {
-      const res = await fetch(`http://localhost:3001/api/reportes/programado-ejecutado?anio=${anioSel}`)
+      const res = await fetch(`http://localhost:3100/api/reportes/programado-ejecutado?anio=${anioSel}`)
       const data = await res.json()
       setDatos(data.filas || [])
     } catch(e) { console.error(e) }

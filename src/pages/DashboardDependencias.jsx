@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import socket from "../services/socket";
+import ChatWidget from "./ChatWidget"
 import "../styles/dashboard.css";
 
 export default function DashboardDependencias() {
@@ -214,7 +215,11 @@ export default function DashboardDependencias() {
             ))}
           </ul>
         )}
-
+<ChatWidget
+  currentUser={user}
+  dependencyId={user?.dependency_id}
+  dependencyName={user?.dependencia || "Mi Dependencia"}
+/>
         <div style={{ marginTop: "16px" }}>
           <button className="strategy-toggle" onClick={() => setShowNotificaciones(!showNotificaciones)} style={{ position: "relative", width: "100%" }}>
             🔔 Notificaciones {showNotificaciones ? "▲" : "▼"}
